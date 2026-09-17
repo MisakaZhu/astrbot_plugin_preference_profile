@@ -1,8 +1,8 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-17（R1–R6 返工候选）
+最后更新：2026-09-17（二轮返工候选 0.1.2）
 
-## 当前状态：R1–R6 返工完成（P0–P7 + 返工均 In Review），新候选待 Codex 独立复验（A0）
+## 当前状态：二轮返工完成（R3/R4/R5 剩余分支 + 真实加载证据），新候选待 Codex 独立复验（A0）
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
@@ -52,3 +52,12 @@
   PipelineContext）；已覆盖真实注册与真实绑定层方法（V22 实机覆盖）。
 - V21 模型遵从度未实测；注入文本措辞已含"不发起/即停"约束但效果
   属实机验收。
+
+## 二轮返工（0491cc9 → 6259829）
+
+- Codex 二轮确认原六反例已修、接受 R4 旧替身说明；本轮修复 7 个
+  remaining 场景（4.28 五个/4.26 七个复现 → 双版本全部 0 复现）。
+- 新增 tests/r3_rework_check.py（10 断言）与 tests/p7_lifecycle_check.py
+  （11 断言，真实 PluginManager.load 完整加载/分发/停用/取消）。
+- 全量：双 venv 各 11 脚本 211 PASS 0 FAIL；旧提交对照 r3 4/10、
+  p7 9/11 失败。统计订正：旧候选为 190/版（非 194）。

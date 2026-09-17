@@ -165,3 +165,24 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   epoch（异步边界后失效）；append 即视为提交，此后不可撤回（如实边界）。
 - **ADR-007 修订（R6）**：方向措辞改为有序真值表（user_dir, bot_dir）
   九组合唯一，互换双方方向产生不同指导。
+
+
+## 二轮返工修订（Codex 复核 0491cc9 后，R3/R4/R5 剩余分支）
+
+- **ADR-002 再修订（R4）**：请求侧（injection）与命令侧同一套人格
+  解析——provider_settings 按 `Context.get_config(umo=当前事件)` 取
+  **会话作用域**配置（真实宿主 umo 参数决定作用域）；会话读取失败
+  （get_conversation 抛错）返回 LookupError → 拒绝私人档案操作，
+  与"成功读取且未指定人格（走宿主默认链）"严格区分。
+- **ADR-003/006 再修订（R5）**：失效校验统一为 `_still_valid`
+  （管理员总开关 + 本人 enabled + epoch）。三道防线：追加前复查；
+  finalize_request（priority=-1000，钩子链末尾）按对象身份移除失效块；
+  ExpirableTextPart 在宿主发送序列化时刻（两版
+  ProviderRequest.assemble_context → model_dump_for_context）动态校验，
+  失效序列化为空文本块——不依赖任何后续钩子被执行。已真正发出的
+  请求不可撤回（不重定义"提交"）。
+- **ADR-005 再修订（R3）**：读取真实生效 scope——解析其
+  config.json（config_version ≤ 7 校验 + is_global_relation 单选
+  session/global），未启用范围的旧记录不混入；PRAGMA user_version
+  必须为已知支持版本（12）；配置无法确认 / 未知 schema / 读取异常
+  一律保守不可用。

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.2（2026-09-17 二轮返工候选）
+
+修复 Codex 二轮复核（0491cc9）确认的 R3/R4/R5 剩余分支：
+
+- R4：4.26 生产注入入口接入 provider_settings（按 UMO 会话作用域）；
+  UMO 作用域配置同时约束管理命令；会话读取失败拒绝私人档案操作
+  （不再落默认人格）。
+- R5：管理员总开关/个人 off/clear/epoch 在追加前与追加后未发送时
+  双重失效（收尾钩子 + ExpirableTextPart 发送序列化时刻校验）；
+  其他插件块不受影响。
+- R3：读取 Relation Arc 真实生效 scope（config.json 单选）；未知
+  schema（PRAGMA user_version）与配置无法确认按合同降级。
+- 新增真实加载生命周期证据（PluginManager.load 完整加载/注册/
+  实例化、CommandFilter+call_handler 完整分发、真实 stop_event 取消、
+  registry 停用过滤）；统计订正为 9 脚本 190/版（此前误报 194），
+  现为 11 脚本 211/版。
+
 ## 0.1.1（2026-09-17 返工候选）
 
 修复 Codex 独立复核（0c32cee）发现的 R1–R6：

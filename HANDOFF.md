@@ -1,10 +1,37 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.1（返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.2（二轮返工候选）
 
-交接日期：2026-09-17（返工轮）。交付状态：**R1–R6 已修复，本地门槛
-满足的新候选，待 Codex 独立复验（A0/MIS-154）**。未宣称实机、云端或
-发布完成。
+交接日期：2026-09-17（二轮返工轮）。交付状态：**R3/R4/R5 剩余分支
+已修复 + 真实加载生命周期证据补齐，本地门槛满足的新候选，待 Codex
+独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
 
-## 0. 返工摘要（0c32cee → 本候选）
+## 0. 二轮返工摘要（0491cc9 → 本候选）
+
+Codex 二轮确认原六反例修复并接受 R4 旧替身说明（corrected_repro 全绿）。
+本轮修复 7 个 remaining 场景：
+
+| 项 | 根因 | 修复 | 证据 |
+| -- | -- | -- | -- |
+| R4-1 | 4.26 生产注入未传 provider_settings | injector 构造接入 provider_settings_getter（按 UMO） | r3·Q1（4.26+4.28 均注入 1 块）；Codex remaining 双版本 0 复现 |
+| R4-2 | 命令只取全局配置 | _provider_settings(event) 按 umo 取会话作用域 | r3·Q2（scoped persona_B 命令=B） |
+| R4-3 | 会话读取失败落默认人格 | LookupError → 拒绝私人档案操作 | r3·Q3（identity=None） |
+| R5-1 | admin off 未复查 | _still_valid（admin+enabled+epoch）追加前复查 | r3·Q6 |
+| R5-2 | append≠发送仍不可失效 | ExpirableTextPart 发送序列化时刻校验 + finalize(-1000) 收尾移除 | r3·Q7（clear 后假模型 0 泄漏、其他插件块保留） |
+| R3-1 | 双 scope 合并混入未启用范围 | config.json 单选生效 scope | r3·Q4/Q4b（真实 _scope 对照） |
+| R3-2 | 未知 schema 判可用 | PRAGMA user_version∈{12} + config_version≤7 | r3·Q5/Q5b（999 与缺 config 均降级） |
+
+真实集成证据（MIS-152）：p7_lifecycle_check 用真实
+PluginManager.load(specified_dir_name) 从临时 data/plugins 完整加载
+（metadata/AstrBotConfig schema/实例化/initialize/12 handler 注册），
+真实 CommandFilter 参数匹配 + call_handler 完整分发 /xp show，真实
+stop_event 取消中止钩子链，真实 registry activated 停用过滤，
+terminate 后零注入。数据目录经 patch 隔离（真实加载路径默认写
+cwd 相对 data/，生产语义；测试不污染仓库）。
+
+注：corrected_repro 的 R3 场景无 config.json（真实部署
+PluginConfigManager.load_or_create 恒写）——按二轮合同"配置无法
+确认时降级"为不可用是预期保守行为；等价带 config 场景见 r3·Q4c。
+
+## 0b. 一轮返工摘要（0c32cee → 0491cc9，历史保留）
 
 | 项 | 根因 | 修复 | 旧失败/新通过证据 |
 | -- | -- | -- | -- |
