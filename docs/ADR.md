@@ -186,3 +186,19 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   session/global），未启用范围的旧记录不混入；PRAGMA user_version
   必须为已知支持版本（12）；配置无法确认 / 未知 schema / 读取异常
   一律保守不可用。
+
+
+## 三轮返工修订（Codex 复核 8de2365 后，T1–T4）
+
+- **T1**：禁止定义 TextPart/ContentPart 子类——宿主
+  `ContentPart.__init_subclass__` 把子类写入全局类型注册表，仅导入
+  即把 text 类型从 TextPart 替换，普通文本被误判失效清空。失效块
+  识别改为固定前缀（HEADER 至首个「】」）；清理只发生在钩子时机。
+- **T2**：on_agent_begin(priority=-1000) 在 Runner reset 后、首次
+  Provider 调用前对 run_context.messages 中已固化的本插件块终检，
+  失效置空文本。OnAgentBegin 返回后到首次 Provider 调用之间无插件
+  钩子点（接口缺口）。
+- **T3**：state_json 解析失败/非 dict/interaction_safety 非法枚举/
+  is_global_relation 非布尔 → 快照一律降级不可用。
+- **T4**：验收文档单一事实来源；ACCEPTANCE 从干净基线重建并附
+  t_rework·T4a 防重复断言。

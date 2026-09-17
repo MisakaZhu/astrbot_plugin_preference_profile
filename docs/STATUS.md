@@ -1,8 +1,8 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-17（二轮返工候选 0.1.2）
+最后更新：2026-09-18（三轮返工候选 0.1.3）
 
-## 当前状态：二轮返工完成（R3/R4/R5 剩余分支 + 真实加载证据），新候选待 Codex 独立复验（A0）
+## 当前状态：三轮返工完成（T1–T4），新候选待 Codex 独立复验（A0）
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
@@ -61,3 +61,12 @@
   （11 断言，真实 PluginManager.load 完整加载/分发/停用/取消）。
 - 全量：双 venv 各 11 脚本 211 PASS 0 FAIL；旧提交对照 r3 4/10、
   p7 9/11 失败。统计订正：旧候选为 190/版（非 194）。
+
+## 三轮返工（8de2365 → 5ffc4ce）
+
+- Codex 三轮确认 211×2 与前两轮 13 反例修复，判 T1–T4。
+- T1 删 ExpirableTextPart（全局 text 注册污染）；T2 on_agent_begin(-1000)
+  运行时消息终检；T3 损坏状态降级；T4 ACCEPTANCE 重建（4.8MB→7KB）。
+- t_rework_check 16 断言双 venv 16/16（旧提交 1/16）；serialization_repro
+  新副本 T1/T3/T4 双版本 0 复现，T2 探针替身差异经宿主源码证据说明。
+- 全量 12 脚本双 venv 各 228 PASS 0 FAIL。

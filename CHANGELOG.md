@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3（2026-09-18 三轮返工候选）
+
+修复 Codex 三轮复核（8de2365）确认的 T1–T4：
+
+- T1：删除 ExpirableTextPart（曾覆盖宿主全局 text 类型注册，导入即
+  污染普通文本序列化）；失效机制改为固定前缀识别 + 钩子时机清理。
+- T2：新增 on_agent_begin(priority=-1000) 真实 Agent 钩子，覆盖
+  reset 后、首次 Provider 调用前的失效窗口（clear/管理员关闭）。
+- T3：损坏/非法 state_json、scope 配置类型错一律降级不可用。
+- T4：ACCEPTANCE.md 从干净基线重建（原 4.8MB 重复插入已清除）。
+- 新增 tests/t_rework_check.py（16 断言）；全量 12 脚本双 venv 各
+  228 PASS。p7 边界措辞按实际覆盖范围修正。
+
 ## 0.1.2（2026-09-17 二轮返工候选）
 
 修复 Codex 二轮复核（0491cc9）确认的 R3/R4/R5 剩余分支：

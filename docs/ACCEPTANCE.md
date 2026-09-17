@@ -6,9 +6,10 @@
 - 复现命令（cwd=仓库根；p3_import_check 需 cwd=父目录，见文件头说明）：
   `<venv>/Scripts/python.exe tests/<脚本>.py`
 - 证据对应提交：三轮返工最终提交见 git log -1（修改代码后本表须重跑）。
-- 统计口径：当前 12 脚本每版 221 PASS（12+33+28+25+4+21+23+19+25+10+11+10）。
-  旧口径订正：0.1.1 候选 9 脚本每版 190（非 194——p3_import 的 4 项曾被
-  按两版本重复计数）；0.1.2 为 11 脚本 211。
+- 统计口径：当前 12 脚本每版 228 PASS
+  （12+33+28+25+4+21+23+19+25+10+12+16）。旧口径订正：0.1.1 候选
+  9 脚本每版 190（非 194——p3_import 的 4 项曾按两版本重复计数）；
+  0.1.2 为 11 脚本 211。
 
 | 编号 | 行为 | 证据（脚本·断言） | 4.28.0 | 4.26.0 |
 | --- | --- | --- | --- | --- |
@@ -58,6 +59,14 @@
   零注入，不等于在途请求或全局状态的恢复验证。
 - V13"原六维/绑定语义不变"由结构性只读（mode=ro + 纯 SELECT +
   p5·RA7 字节不变）证明；Relation Arc 自身功能回归以其项目测试为准。
+- T2 复核脚本替身差异说明：Codex serialization_repro 的 after_reset
+  场景设置 ev.plugins_name=[探针模块]（白名单排除本插件）且未按
+  PluginManager.load 重绑 handler——宿主源码证据：①生产 plugins_name
+  仅在管理员配置 plugin_set 时设置（waking_check/stage.py:164-169），
+  排除本插件时注入主钩子同样被排除（不会产生旧块）；②真实加载把
+  插件方法重绑为 functools.partial(raw, star_cls)（star_manager 实例
+  化段），未绑定 handler 在生产不存在。等价真实加载状态的验证见
+  t_rework·T2（白名单含插件名 + partial 绑定）。
 - 0.1.2 的 ExpirableTextPart 曾覆盖宿主全局 text 类型注册（Codex T1），
   0.1.3 已删除该子类并改用前缀识别 + 钩子时机清理；t_rework·T1a-T1f
   证明导入/默认关闭/terminate 前后宿主普通文本、历史摘要、其他插件

@@ -1,10 +1,21 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.2（二轮返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.3（三轮返工候选）
 
-交接日期：2026-09-17（二轮返工轮）。交付状态：**R3/R4/R5 剩余分支
-已修复 + 真实加载生命周期证据补齐，本地门槛满足的新候选，待 Codex
-独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
+交接日期：2026-09-18（三轮返工轮）。交付状态：**T1–T4 已修复，本地
+门槛满足的新候选，待 Codex 独立复验（A0/MIS-154）**。未宣称实机、
+云端或发布完成。
 
-## 0. 二轮返工摘要（0491cc9 → 本候选）
+## 0. 三轮返工摘要（8de2365 → 本候选）
+
+Codex 三轮确认前两轮 13 个反例已修，判 T1–T4：
+
+| 项 | 根因 | 修复 | 证据 |
+| -- | -- | -- | -- |
+| T1 | ExpirableTextPart 子类经 ContentPart.__init_subclass__ 覆盖宿主全局 text 注册，导入即污染普通文本 | 删除子类；前缀识别 is_own_part + 钩子时机清理 | serialization_repro 新副本双版本 3 探针 0 复现；t_rework T1a-T1f |
+| T2 | reset 后、首次 Provider 调用前无失效校验 | on_agent_begin(priority=-1000) 对 run_context.messages 终检置空 | t_rework T2 clear/admin_off（真实 OnAgentBegin 等待，首调零泄漏、原输入/哨兵保留）；探针替身差异见 ACCEPTANCE 边界 |
+| T3 | 损坏 state_json 解析失败被 pass 当 normal | 解析失败/非 dict/非法枚举/scope 类型错 → 降级 | serialization_repro 0 复现；t_rework T3b-T3g |
+| T4 | ACCEPTANCE.md 4.8MB/3585 次重复插入 | 从 0491cc9 干净基线重建，单份矩阵+边界 | t_rework T4a（尺寸<100KB、重复≤1） |
+
+## 0b. 二轮返工摘要（0491cc9 → 8de2365，历史保留）
 
 Codex 二轮确认原六反例修复并接受 R4 旧替身说明（corrected_repro 全绿）。
 本轮修复 7 个 remaining 场景：
