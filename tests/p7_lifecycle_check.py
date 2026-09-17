@@ -14,10 +14,11 @@
   L3  停用（真实 registry 过滤）：activated=False 后
       get_handlers_by_event_type 不再返回该插件任何 handler；
       重新激活后恢复。
-  L4  取消（真实钩子链中止）：priority=20 偏好钩子执行后调用
-      event.stop_event() → call_event_hook 返回 True、后续 0 优先级
-      钩子不执行（宿主取消语义，非普通异常）。
-  L5  卸载语义：terminate 后 store 关闭（新轮次不再注入）。
+  L4  取消（真实事件传播停止）：priority=10 钩子调用 event.stop_event()
+      → call_event_hook 返回 True、后续 0 优先级钩子不执行。注意：只
+      证明钩子链传播停止，不等同于对在途 Agent 协程的 asyncio 取消。
+  L5  卸载语义：terminate 后 store 关闭（新轮次不再注入）。注意：仅
+      证明新轮次零注入，不等于在途请求或全局状态的恢复验证。
 
 运行：<venv>/Scripts/python.exe tests/p7_lifecycle_check.py
 """
@@ -185,8 +186,8 @@ async def main() -> int:
         ]
         cmd_names = {h.handler_name for h in handlers}
         check(
-            "L1c 10 命令 + 2 个 LLM 钩子注册",
-            len(handlers) == 12
+            "L1c 10 命令 + 2 个 LLM 钩子 + 1 个 AgentBegin 钩子注册",
+            len(handlers) == 13
             and {"xp_show", "xp_set", "xp_on", "xp_off", "xp_admin", "xp_clear"} <= cmd_names,
             f"n={len(handlers)}, names={sorted(cmd_names)}",
         )
@@ -195,6 +196,15 @@ async def main() -> int:
         ]
         prios = sorted(h.extras_configs.get("priority", 0) for h in llm_hooks)
         check("L1d LLM 钩子优先级 20/-1000", prios == [-1000, 20], f"prios={prios}")
+        begin_hooks = [
+            h for h in handlers if h.event_type == EventType.OnAgentBeginEvent
+        ]
+        check(
+            "L1d2 AgentBegin 失效钩子 priority=-1000（链末尾）",
+            len(begin_hooks) == 1
+            and begin_hooks[0].extras_configs.get("priority", 0) == -1000,
+            f"n={len(begin_hooks)}",
+        )
         check(
             "L1e 插件实例已创建并加载 schema 配置",
             loaded_meta.star_cls is not None
@@ -310,7 +320,7 @@ async def main() -> int:
             req4.conversation = SimpleNamespace(persona_id="persona_A", token_usage=0, cid="c")
             stopped = await call_event_hook(ev4, EventType.OnLLMRequestEvent, req4)
             check(
-                "L4 取消中止钩子链（后续钩子未执行）",
+                "L4 事件传播停止（后续钩子未执行；非 Agent 异步取消）",
                 stopped is True and cancel_marker["later_ran"] is False,
                 f"stopped={stopped}, later_ran={cancel_marker['later_ran']}",
             )
@@ -326,7 +336,7 @@ async def main() -> int:
         req5.conversation = SimpleNamespace(persona_id="persona_A", token_usage=0, cid="c")
         await obj.on_llm_request(ev5, req5)  # 直接调用仍应受 store 关闭影响→不注入
         check(
-            "L5 terminate 后新轮次零注入",
+                "L5 terminate 后新轮次零注入（非在途/全局恢复断言）",
             len(req5.extra_user_content_parts) == 0,
             f"parts={len(req5.extra_user_content_parts)}",
         )

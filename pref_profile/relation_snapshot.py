@@ -60,8 +60,8 @@ class RelationSnapshotReader:
     def _resolve_scope(self, umo: str) -> tuple[str, str] | None:
         """读取真实生效 scope（session umo / global ""）。
 
-        返回 None 表示配置无法确认（缺文件/解析失败/未知版本）→ 调用方
-        按合同降级为不可用，不猜测 scope。
+        返回 None 表示配置无法确认（缺文件/解析失败/未知版本/字段
+        类型非法）→ 调用方按合同降级为不可用，不猜测 scope。
         """
 
         config_path = self._dir / ARC_CONFIG_NAME
@@ -74,7 +74,10 @@ class RelationSnapshotReader:
             version = raw.get("config_version")
             if type(version) is not int or version > CONFIG_VERSION_MAX:
                 return None
-            if raw.get("is_global_relation", True) is True:
+            flag = raw.get("is_global_relation", True)
+            if not isinstance(flag, bool):
+                return None  # T3：scope 配置类型非法 → 无法确认
+            if flag is True:
                 return ("global", "")
             return ("session", str(umo))
         except Exception:  # noqa: BLE001 - 配置不可读 → 无法确认
@@ -123,15 +126,20 @@ class RelationSnapshotReader:
             paused = bool(account["paused"])
             effective = RHYTHM_NORMAL
             state_keys: list[str] = []
+            # T3：损坏/非法 state_json 一律降级不可用——不能把无法解析
+            # 的关系状态当成 normal 继续使用（Codex 三轮）。
             try:
                 state = json.loads(account["state_json"] or "{}")
-                if isinstance(state, dict):
-                    state_keys.extend(sorted(k for k in state.keys()))
-                    base = state.get("interaction_safety")
-                    if base in _VALID_SAFETY:
-                        effective = base
             except (ValueError, TypeError):
-                pass
+                return RelationSnapshot.unavailable()
+            if not isinstance(state, dict):
+                return RelationSnapshot.unavailable()
+            state_keys.extend(sorted(k for k in state.keys()))
+            base = state.get("interaction_safety")
+            if base is not None and base not in _VALID_SAFETY:
+                return RelationSnapshot.unavailable()  # 非法状态枚举
+            if base in _VALID_SAFETY:
+                effective = base
             ts = conn.execute(
                 "SELECT level, expires_at FROM timed_safety "
                 "WHERE identity=? AND scope_kind=? AND scope_id=?",

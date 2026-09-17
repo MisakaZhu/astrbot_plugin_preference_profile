@@ -220,14 +220,27 @@ class PreferenceProfilePlugin(Star):
 
     @filter.on_llm_request(priority=-1000)
     async def finalize_request(self, event: AstrMessageEvent, req: ProviderRequest):
-        """钩子链末尾（Runner 组装前）的最终失效校验（R5）。
+        """钩子链末尾（Runner 组装前）的最终失效校验（R5/T2）。
 
-        对本插件已追加但宿主尚未发送的临时块校验 admin/enabled/epoch，
-        失效则按对象身份移除（仅本插件块，其他插件内容不动）。
-        已进入 Runner/已发出的内容不可撤回（如实边界）。
+        对本插件已追加但宿主尚未组装的临时块校验 admin/enabled/epoch，
+        失效则按前缀移除（仅本插件块，其他插件内容不动）。
         """
 
         self._injector.finalize(event, req)
+
+    @filter.on_agent_begin(priority=-1000)
+    async def on_agent_begin(self, event: AstrMessageEvent, run_context):
+        """真实 Agent 钩子（T2）：Runner reset 完成后、首次 Provider 调用前。
+
+        priority=-1000：在本轮其他 OnAgentBegin 钩子（含受控等待）之后、
+        链末尾执行——等待期间发生的失效在恢复后仍会被本校验捕获。
+        对 run_context.messages 中已固化的本插件块做最终失效校验，
+        失效时置空其文本（普通输入与其他插件块不受影响）。此后到首次
+        Provider 调用之间无插件可介入的宿主钩子点（接口缺口，如实
+        声明）；已真正发出的请求不可撤回。
+        """
+
+        self._injector.invalidate_runtime_messages(event, run_context)
 
     # -- 命令组（/xp 主名，/偏好 中文别名） ---------------------------------
 
