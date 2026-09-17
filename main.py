@@ -10,8 +10,10 @@ from typing import Optional
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, MessageEventResult, filter
+from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star, StarTools
 
+from .pref_profile.bridge_guard import BridgeGuard
 from .pref_profile.commands import (
     GROUP_HINT,
     CommandError,
@@ -23,6 +25,7 @@ from .pref_profile.identity import (
     build_identity,
     resolve_persona_scope,
 )
+from .pref_profile.injection import PreferenceInjector
 from .pref_profile.store import PrefStore
 
 
@@ -44,6 +47,13 @@ class PreferenceProfilePlugin(Star):
         self._store = PrefStore(self._data_dir / "preference_profile.db")
         self._commands = CommandService(
             self._store, self._config, self._resolve_identity
+        )
+        self._bridge_guard = BridgeGuard()
+        self._injector = PreferenceInjector(
+            self._store,
+            self._config,
+            lambda: self.context.persona_manager,
+            self._bridge_guard,
         )
 
     async def initialize(self) -> None:
@@ -95,6 +105,12 @@ class PreferenceProfilePlugin(Star):
             logger.error("preference_profile 命令处理失败", exc_info=True)
             text = "命令处理出现内部错误，请稍后再试。"
         await self._reply(event, text)
+
+    # -- LLM 请求钩子（priority=20：先于 Context Bridge 的捕获钩子） ---------
+
+    @filter.on_llm_request(priority=20)
+    async def on_llm_request(self, event: AstrMessageEvent, req: ProviderRequest):
+        await self._injector.handle(event, req)
 
     # -- 命令组（/xp 主名，/偏好 中文别名） ---------------------------------
 

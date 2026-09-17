@@ -52,7 +52,11 @@ def main() -> int:
 
     llm_hooks = [h for h in star_handlers_registry
                  if h.handler_module_path == mod and h.event_type == EventType.OnLLMRequestEvent]
-    check("P3 阶段无 LLM 钩子（P4 加入）", len(llm_hooks) == 0)
+    check(
+        "LLM 钩子恰一个且 priority=20（先于 uctx 捕获）",
+        len(llm_hooks) == 1 and llm_hooks[0].extras_configs.get("priority") == 20,
+        f"n={len(llm_hooks)}",
+    )
 
     meta = star_map.get(mod)
     check("Star 元数据注册且激活", meta is not None and meta.activated)

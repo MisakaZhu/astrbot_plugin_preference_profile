@@ -103,6 +103,10 @@ class FakeEvent(AstrMessageEvent):
     def unified_msg_origin(self, value: str) -> None:
         raise NotImplementedError("测试事件不允许改路由")
 
+    @property
+    def is_private_chat(self) -> bool:
+        return not bool(self.message_obj.group_id)
+
     # AstrMessageEvent 基类要求的抽象成员 -------------------------------------
     def get_sender_id(self) -> str:
         return str(self.message_obj.sender.user_id)
@@ -137,4 +141,83 @@ class FakeConversationManager:
 
 
 def fake_conversation(cid: str = "c1", persona_id: str | None = None):
-    return SimpleNamespace(cid=cid, persona_id=persona_id)
+    return SimpleNamespace(cid=cid, persona_id=persona_id, token_usage=0)
+
+
+# -- 可控假模型（照 uctx 项目已验证实现，自包含副本） ------------------------
+
+from astrbot.core.provider.entities import LLMResponse  # noqa: E402
+from astrbot.core.provider.provider import Provider, ProviderMeta  # noqa: E402
+
+
+class FakeProvider(Provider):
+    """可控假模型：记录每次请求入参，返回预设回复；不连接网络。"""
+
+    def __init__(self, reply_script: list[str] | None = None) -> None:
+        super().__init__(
+            provider_config={
+                "id": "fake_provider",
+                "type": "openai",
+                "name": "fake-provider",
+                "model": "fake-model",
+                "key": ["test-key"],
+                "api_base": "http://127.0.0.1:0/v1",
+                "max_context_tokens": 128000,
+            },
+            provider_settings={},
+        )
+        self.model_name = "fake-model"
+        self.reply_script = list(reply_script or ["这是假模型的固定回复。"])
+        self.call_log: list[dict[str, Any]] = []
+        self.error_script: list[Exception | None] = []
+
+    def meta(self) -> ProviderMeta:  # noqa: D102 - 绕过全局注册表
+        return ProviderMeta(id="fake_provider", model=self.get_model(), type="openai")
+
+    def get_current_key(self) -> str:
+        return "test-key"
+
+    def set_key(self, key: str) -> None:
+        pass
+
+    async def get_models(self) -> list[str]:
+        return ["fake-model"]
+
+    async def text_chat(
+        self,
+        prompt: str | None = None,
+        session_id: str | None = None,
+        image_urls: list[str] | None = None,
+        audio_urls: list[str] | None = None,
+        func_tool=None,
+        contexts=None,
+        system_prompt: str | None = None,
+        tool_calls_result=None,
+        model: str | None = None,
+        extra_user_content_parts=None,
+        tool_choice: str = "auto",
+        request_max_retries: int | None = None,
+        **kwargs,
+    ) -> LLMResponse:
+        self.call_log.append(
+            {
+                "prompt": prompt,
+                "contexts": [
+                    m if isinstance(m, dict) else m.model_dump() for m in (contexts or [])
+                ],
+                "system_prompt": system_prompt,
+            }
+        )
+        if self.error_script:
+            err = self.error_script.pop(0)
+            if err is not None:
+                raise err
+        if len(self.reply_script) > 1:
+            reply = self.reply_script.pop(0)
+        else:
+            reply = self.reply_script[0]
+        return LLMResponse(role="assistant", completion_text=reply)
+
+    async def text_chat_stream(self, **kwargs):
+        resp = await self.text_chat(**kwargs)
+        yield resp
