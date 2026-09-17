@@ -36,6 +36,7 @@ htmlcov/
 # IDE / 系统文件
 .idea/
 .vscode/
+.mimosa/
 *.swp
 .DS_Store
 Thumbs.db
