@@ -1,0 +1,25 @@
+{
+  "admin_enabled": {
+    "description": "管理员总开关（默认关闭。关闭时任何用户偏好都不读取、不注入）",
+    "type": "bool",
+    "hint": "默认关闭。开启后用户仍需在私聊执行 /xp on 才会为自己的轮次启用偏好。",
+    "default": false
+  },
+  "relation_link_enabled": {
+    "description": "启用 Relation Arc 只读关系联动（缺失/异常时自动保守失效）",
+    "type": "bool",
+    "default": true
+  },
+  "max_inject_items": {
+    "description": "单轮注入指导条目上限",
+    "type": "int",
+    "default": 6,
+    "hint": "1-10"
+  },
+  "max_inject_chars": {
+    "description": "单轮注入总字符上限",
+    "type": "int",
+    "default": 600,
+    "hint": "100-2000"
+  }
+}

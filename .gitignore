@@ -1,0 +1,44 @@
+# 运行时数据（真实档案数据库，绝不入库）
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python 产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 独立测试虚拟环境（不入库，需另行说明重建方式）
+.venv*/
+venv*/
+env/
+
+# 测试与工具缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# 本地工作区与证据暂存（证据整理后放 docs/evidence，仍需脱敏检查）
+.work/
+.tmp*/
+*.log
+
+# IDE / 系统文件
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# 打包产物
+*.zip
