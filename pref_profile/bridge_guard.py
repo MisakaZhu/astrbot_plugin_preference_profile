@@ -28,42 +28,47 @@ MODE_PROTOCOL_MISSING = "protocol_missing"
 class BridgeGuard:
     def __init__(self, star_map: dict | None = None):
         self._star_map = star_map
-        self._mode: str | None = None
+        # 探测结果不缓存：宿主插件装载/卸载/重载会改变 star_map，
+        # 每次取 mode 实时重估（开销为一次字典遍历）。返工 R2：
+        # 无参构造（_star_map=None）曾导致恒为 no_bridge；生产代码必须
+        # 传入真实宿主注册表 astrbot.core.star.star.star_map。
         self._detected_version: str | None = None
 
     @property
     def mode(self) -> str:
-        if self._mode is None:
-            self.refresh()
-        return self._mode or MODE_NO_BRIDGE
+        return self.refresh()
 
     @property
     def detected_version(self) -> str | None:
         return self._detected_version
 
     def refresh(self) -> str:
-        """重新探测（uctx 装载/卸载后调用）。"""
+        """实时探测（每次遍历 star_map；uctx 装卸后状态随之正确）。"""
 
-        self._mode = MODE_NO_BRIDGE
+        mode = MODE_NO_BRIDGE
         self._detected_version = None
         star_map = self._star_map
         if not star_map:
-            return self._mode
+            return mode
         meta = None
         for m in star_map.values():
             if getattr(m, "name", None) == UCTX_PLUGIN_NAME:
                 meta = m
                 break
         if meta is None:
-            return self._mode
+            return mode
         self._detected_version = getattr(meta, "version", None)
+        activated = bool(getattr(meta, "activated", False))
         module = getattr(meta, "module", None)
         supported = getattr(module, "UCTX_EXCLUDE_PROTOCOL", None) if module else None
+        if not activated:
+            # 目标插件已停用/未激活：视为不在场（其钩子不会执行）
+            return mode
         if supported == PROTOCOL_TURN_EXCLUSION:
-            self._mode = MODE_PROTOCOL_OK
+            mode = MODE_PROTOCOL_OK
         else:
-            self._mode = MODE_PROTOCOL_MISSING
-        return self._mode
+            mode = MODE_PROTOCOL_MISSING
+        return mode
 
     def injection_allowed(self) -> bool:
         """protocol_missing 时禁止私人偏好注入（V16）。"""

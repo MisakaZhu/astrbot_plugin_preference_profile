@@ -14,7 +14,7 @@ import secrets
 import time
 from typing import Any, Awaitable, Callable, Optional
 
-from .identity import PrefIdentity
+from .identity import PrefIdentity, host_is_private_chat
 from .model import (
     BUILTIN_TAG_LABELS,
     MAX_CUSTOM_TAGS,
@@ -88,7 +88,8 @@ class CommandService:
     # -- 门禁 ------------------------------------------------------------
 
     def _require_private(self, event: Any) -> None:
-        if not bool(getattr(event, "is_private_chat", False)):
+        # 真实宿主 is_private_chat 是方法；统一走 host_is_private_chat（R1）
+        if not host_is_private_chat(event):
             raise _GroupOnly()
 
     async def _require_user_identity(self, event: Any) -> PrefIdentity:
@@ -106,7 +107,7 @@ class CommandService:
     # -- 用户子命令 --------------------------------------------------------
 
     async def handle_help(self, event: Any) -> str:
-        if not bool(getattr(event, "is_private_chat", False)):
+        if not host_is_private_chat(event):
             return GROUP_HINT
         return (
             "【角色偏好与互动边界（XP 管理）】\n"

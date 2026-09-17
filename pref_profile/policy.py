@@ -77,14 +77,24 @@ def _pair_by_tag(user_entries: list[Entry], bot_entries: list[Entry]):
 
 
 def _direction_phrase(user_dir: str, bot_dir: str) -> str:
-    """确定性方向措辞：互补→回应；任一双向→灵活；同向→自然。"""
+    """有序的双方方向语义（返工 R6：不得丢失谁主动/谁接受）。
 
-    pair = {user_dir, bot_dir}
-    if "both" in pair:
-        return "灵活"
-    if pair == {"active", "receptive"}:
-        return "按对方节奏回应"
-    return "自然"
+    措辞面向模型（角色视角）："用户"是当前对话者。互换 user/bot 方向
+    必须产生不同指导。
+    """
+
+    table = {
+        ("active", "receptive"): "该维度以用户主动发起为宜，你以顺应回应为主，不主动发起",
+        ("receptive", "active"): "用户接受由你主动发起该维度；发起时留意对方当下意愿，示意停止即停",
+        ("active", "active"): "双方都偏好主动：自然互动即可，避免抢话或强加",
+        ("receptive", "receptive"): "双方都倾向接受：保持温和，仅在对方自然提起时参与",
+        ("both", "active"): "角色可适度主动发起，同时兼顾用户的节奏",
+        ("both", "receptive"): "以用户主动发起为主，你顺应回应",
+        ("active", "both"): "以用户主动发起为主，你灵活回应",
+        ("receptive", "both"): "你可适度发起该维度，留意用户的接受度",
+        ("both", "both"): "按对话自然节奏灵活参与",
+    }
+    return table.get((user_dir, bot_dir), "自然")
 
 
 def _intensity_word(cap: int) -> str:

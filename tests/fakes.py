@@ -103,9 +103,9 @@ class FakeEvent(AstrMessageEvent):
     def unified_msg_origin(self, value: str) -> None:
         raise NotImplementedError("测试事件不允许改路由")
 
-    @property
-    def is_private_chat(self) -> bool:
-        return not bool(self.message_obj.group_id)
+    # 注意：is_private_chat 不做任何覆写——真实宿主它是方法（基于
+    # message_obj.type 判定）。曾经的 @property 替身掩盖了生产接口误用
+    # （Codex 复核 R1），已删除；测试事件必须走宿主真实实现。
 
     # AstrMessageEvent 基类要求的抽象成员 -------------------------------------
     def get_sender_id(self) -> str:

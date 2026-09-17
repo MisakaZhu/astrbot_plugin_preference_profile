@@ -5,6 +5,14 @@
 req.conversation 被其置空之前；排除标志在其捕获（begin_turn 写库）之前
 打上。幂等（event extra 标记）；不触碰 system_prompt / contexts /
 func_tool / unified_msg_origin；不发起任何额外模型调用。
+
+返工加固（Codex 复核 R1/R2/R5）：
+- 私聊判定统一走 host_is_private_chat（真实宿主是方法）；
+- 排除标志写入失败（protocol_ok 但 mark_excluded 返回 False）→ 本轮
+  不注入私人偏好（保守）；
+- 追加注入块之前重新校验本人 enabled 与 epoch（异步边界后的失效，
+  off/clear/停用使未提交快照失效）。append 即视为提交：此后请求进入
+  宿主 Runner，已送出内容不可撤回（如实边界）。
 """
 
 from __future__ import annotations
@@ -15,8 +23,8 @@ from typing import Any, Awaitable, Callable, Optional
 from astrbot.api.provider import ProviderRequest
 from astrbot.core.agent.message import TextPart
 
-from .bridge_guard import BridgeGuard
-from .identity import PrefIdentity, build_identity, resolve_persona_scope
+from .bridge_guard import MODE_PROTOCOL_OK, BridgeGuard
+from .identity import PrefIdentity, build_identity, host_is_private_chat, resolve_persona_scope
 from .policy import RelationSnapshot, TurnInput, evaluate
 from .prompt_builder import render_decision
 from .store import PrefStore
@@ -57,7 +65,7 @@ class PreferenceInjector:
 
         if not bool(self._config.get("admin_enabled", False)):
             return
-        if not bool(getattr(event, "is_private_chat", False)):
+        if not host_is_private_chat(event):
             return
 
         # 人格解析：钩子先于 uctx 执行，req.conversation 尚未被置空
@@ -73,13 +81,16 @@ class PreferenceInjector:
             sender_id=str(event.get_sender_id() or ""),
         )
 
-        enabled, _epoch = self._store.get_user_state(identity.key)
+        enabled, epoch_snapshot = self._store.get_user_state(identity.key)
         if not enabled:
             return
 
         # 已启用偏好的私聊轮次：与是否实际注入文本无关，均需排除共享
-        if self._bridge.mode == "protocol_ok":
-            self._bridge.mark_excluded(event)
+        if self._bridge.mode == MODE_PROTOCOL_OK:
+            if not self._bridge.mark_excluded(event):
+                # 标志写入失败：无法保证捕获前排除 → 保守禁用（R2）
+                event.set_extra(_DONE_EXTRA, True)
+                return
 
         if not self._bridge.injection_allowed():
             # uctx 在场但无排除协议：保守禁用私人注入（V16）
@@ -102,6 +113,13 @@ class PreferenceInjector:
             "relation_link_enabled", True
         ):
             relation = await self._relation_loader(identity, event)
+
+        # R5：异步边界（relation_loader await）之后、真正提交注入之前，
+        # 重新校验本人开关与 epoch；off/clear/停用使未提交快照失效。
+        enabled_now, epoch_now = self._store.get_user_state(identity.key)
+        if not enabled_now or epoch_now != epoch_snapshot:
+            event.set_extra(_DONE_EXTRA, True)
+            return
 
         try:
             max_items = int(self._config.get("max_inject_items", 6))
@@ -126,4 +144,6 @@ class PreferenceInjector:
         event.set_extra(_DONE_EXTRA, True)
         if text is None:
             return
+        # append 即视为本轮提交：此后由宿主 Runner 发送，不可撤回；
+        # 失效校验已在上方完成（R5）。
         req.extra_user_content_parts.append(TextPart(text=text).mark_as_temp())

@@ -1,18 +1,26 @@
 """astrbot_plugin_preference_profile 宿主入口。
 
-命令绑定 + 生命周期。on_llm_request 注入钩子在 P4 加入（见 docs/PLAN.md）；
-本文件任何路径都不记录档案原文日志。
+命令绑定 + 生命周期 + LLM 请求钩子。本文件任何路径都不记录档案原文。
+
+返工加固（Codex 复核 R1/R2/R4）：
+- 私聊判定统一 host_is_private_chat（真实宿主是方法）；
+- BridgeGuard 接入**真实宿主注册表** star_map（此前空参构造导致恒为
+  no_bridge，已加载的共享插件被漏判）；
+- 命令人格解析读取当前会话 conversation.persona_id（与请求轮次同一
+  选中会话），并按宿主版本签名传入 provider_settings（4.26 需要）。
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from types import SimpleNamespace
+from typing import Any, Optional
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, MessageEventResult, filter
 from astrbot.api.provider import ProviderRequest
 from astrbot.api.star import Context, Star, StarTools
+from astrbot.core.star.star import star_map as host_star_map
 
 from .pref_profile.bridge_guard import BridgeGuard
 from .pref_profile.commands import (
@@ -24,6 +32,7 @@ from .pref_profile.commands import (
 from .pref_profile.identity import (
     PrefIdentity,
     build_identity,
+    host_is_private_chat,
     resolve_persona_scope,
 )
 from .pref_profile.injection import PreferenceInjector
@@ -47,10 +56,7 @@ class PreferenceProfilePlugin(Star):
         self._astrbot_config = config if config is not None else None
         self._data_dir = StarTools.get_data_dir()
         self._store = PrefStore(self._data_dir / "preference_profile.db")
-        self._commands = CommandService(
-            self._store, self._config, self._resolve_identity
-        )
-        self._bridge_guard = BridgeGuard()
+        self._bridge_guard = BridgeGuard(star_map=host_star_map)
         self._relation_reader: Optional[RelationSnapshotReader] = None
         self._injector = PreferenceInjector(
             self._store,
@@ -58,6 +64,82 @@ class PreferenceProfilePlugin(Star):
             lambda: self.context.persona_manager,
             self._bridge_guard,
             self._load_relation_snapshot,
+        )
+        self._commands = CommandService(
+            self._store, self._config, self._resolve_identity
+        )
+
+    async def initialize(self) -> None:
+        await super().initialize()
+        # 宿主插件装载/卸载会改变 star_map；每次初始化重新探测协作协议
+        self._bridge_guard.refresh()
+        logger.info("preference_profile 已加载（默认关闭，用户需 /xp on）")
+
+    async def terminate(self) -> None:
+        # epoch 已在 store 内持久化；关闭连接即可，在途请求按 epoch 失效
+        self._store.close()
+        await super().terminate()
+
+    # -- 身份解析 -----------------------------------------------------------
+
+    async def _current_conversation_persona_id(
+        self, event: AstrMessageEvent
+    ) -> Optional[str]:
+        """当前 UMO 选中会话的 persona_id（与请求轮次同一会话，R4）。
+
+        与宿主 _get_session_conv 同源：get_curr_conversation_id →
+        get_conversation。读取失败返回 None（交由宿主解析优先级继续，
+        不写死人格）。
+        """
+
+        manager = getattr(self.context, "conversation_manager", None)
+        if manager is None:
+            return None
+        try:
+            cid = await manager.get_curr_conversation_id(
+                event.unified_msg_origin
+            )
+            if not cid:
+                return None
+            conversation = await manager.get_conversation(
+                event.unified_msg_origin, cid
+            )
+            return getattr(conversation, "persona_id", None)
+        except Exception:  # noqa: BLE001 - 读取失败走默认解析链
+            return None
+
+    def _provider_settings(self) -> Optional[dict]:
+        """4.26 默认人格解析需要 provider_settings（default_personality）。"""
+
+        try:
+            cfg = self.context.get_config() or {}
+            ps = cfg.get("provider_settings")
+            return ps if isinstance(ps, dict) else None
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def _resolve_identity(self, event: AstrMessageEvent) -> Optional[PrefIdentity]:
+        """命令/钩子共用：解析失败返回 None（调用方保守跳过）。
+
+        conversation 取当前选中会话（R4：命令与请求同一生效人格）。
+        """
+
+        conversation = SimpleNamespace(
+            persona_id=await self._current_conversation_persona_id(event)
+        )
+        persona_scope = await resolve_persona_scope(
+            self.context.persona_manager,
+            event,
+            conversation,
+            provider_settings=self._provider_settings(),
+        )
+        if persona_scope is None:
+            return None
+        return build_identity(
+            platform_id=str(event.get_platform_id() or ""),
+            self_id=str(event.get_self_id() or ""),
+            persona_scope=persona_scope,
+            sender_id=str(event.get_sender_id() or ""),
         )
 
     def _load_relation_snapshot(self, identity, event):
@@ -80,32 +162,6 @@ class PreferenceProfilePlugin(Star):
 
                 return _none(identity, event)
         return self._relation_reader.load(identity, event.unified_msg_origin)
-
-    async def initialize(self) -> None:
-        await super().initialize()
-        logger.info("preference_profile 已加载（默认关闭，用户需 /xp on）")
-
-    async def terminate(self) -> None:
-        # epoch 已在 store 内持久化；关闭连接即可，在途请求按 epoch 失效
-        self._store.close()
-        await super().terminate()
-
-    # -- 身份解析 -----------------------------------------------------------
-
-    async def _resolve_identity(self, event: AstrMessageEvent) -> Optional[PrefIdentity]:
-        """命令/钩子共用：解析失败返回 None（调用方保守跳过）。"""
-
-        persona_scope = await resolve_persona_scope(
-            self.context.persona_manager, event, None
-        )
-        if persona_scope is None:
-            return None
-        return build_identity(
-            platform_id=str(event.get_platform_id() or ""),
-            self_id=str(event.get_self_id() or ""),
-            persona_scope=persona_scope,
-            sender_id=str(event.get_sender_id() or ""),
-        )
 
     def _save_host_config(self) -> None:
         if self._astrbot_config is not None:
@@ -200,7 +256,7 @@ class PreferenceProfilePlugin(Star):
         intensity: str = "",
     ):
         # 管理命令统一私聊（避免在群聊暴露开关与模板操作轨迹）
-        if not bool(getattr(event, "is_private_chat", False)):
+        if not host_is_private_chat(event):
             await self._reply(event, GROUP_HINT)
             return
         action_l = (action or "").strip().lower()
