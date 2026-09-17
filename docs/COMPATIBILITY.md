@@ -18,8 +18,8 @@ StarTools.get_data_dir、filter.permission_type / PermissionType.ADMIN。
 
 | 插件 | 基线 | 交互 | 状态 |
 | --- | --- | --- | --- |
-| astrbot_plugin_user_context_bridge | 8477eba | 捕获前排除协议（ADR-004），隔离副本补丁 | P5 实现与验证 |
-| astrbot_plugin_relation_arc | 913ca59 | 只读 SQLite 快照（ADR-005） | P5 实现与验证 |
+| astrbot_plugin_user_context_bridge | d8a7147（0.2.0 返工候选；规划时 8477eba 已被该项目返工推进） | 捕获前排除协议（ADR-004），隔离副本补丁 patches/0001 | 已验证（p5 双 venv 23/23） |
+| astrbot_plugin_relation_arc | 913ca59 | 只读 SQLite 快照（ADR-005） | 已验证（p5 RA 系列） |
 
 - 两参考仓库本轮全程只读；协作改动在隔离副本以补丁交付。
 - uctx 在场且未打补丁 → 私人偏好注入禁用（保守降级，原因码

@@ -1,0 +1,2 @@
+# 本插件零第三方依赖：仅使用 Python 标准库（sqlite3/secrets/hashlib 等）
+# 与 AstrBot 宿主自带接口。请勿在此添加依赖。

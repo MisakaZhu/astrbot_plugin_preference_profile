@@ -1,49 +1,51 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-17（P0 收尾）
+最后更新：2026-09-17（P7 交付定稿）
 
-## 当前状态：P0 完成，待 P1
+## 当前状态：P0–P7 全部完成（In Review），本地候选待 Codex 独立验收（A0）
 
-- Git：main 分支；首笔提交见 `git log`；工作区以 `git status --short` 为准。
-- Linear：MIS-146 In Progress → 本阶段自测完成后置 In Review 并继续 P1。
+- 分支 `main`，最终提交与工作区状态以 `git log --oneline -1` 与
+  `git status --short` 实查为准；P0–P7 各阶段提交见 git log。
+- 安装包：`dist/astrbot_plugin_preference_profile-0.1.0.zip`（SHA-256
+  见 `dist/SHA256SUMS.txt`）。
+- 协作补丁：`patches/0001-uctx-turn-exclusion-protocol.patch`
+  （基线 d8a7147，SHA-256 见 `patches/SHA256SUMS.txt`）。
 
-## P0 已完成
+## 阶段记录
 
-1. 现场核对：目标目录原不存在（全新初始化）；父目录 D:\第三方插件完善 非 Git
-   仓库；参考仓库 HEAD 与规划记录一致（relation_arc 913ca59 / uctx 8477eba，
-   两仓库 `git status --short` 均干净）。
-2. 独立 Git main 初始化，仓库级作者身份沿用本机既有插件提交身份
-   （Ewnscat-ya <317573784+Ewnscat-ya@users.noreply.github.com>，未改全局配置）。
-3. 先建 .gitignore（数据/环境/产物隔离），再显式跟踪文档与测试。
-4. 真实宿主验证（两个共享 venv，脱网、合成数据）：
-   `tests/p0_host_contract_check.py` 12/12 PASS × 4.28.0 与 4.26.0：
-   - F1 mark_as_temp 临时块序列化语义（_no_save 传播）
-   - F2 钩子 priority 降序执行（20 先于 0）
-   - F3 真实 call_event_hook 链上高优先级 set_extra → 低优先级可读
-     （uctx 捕获前排除协议机制核心）
-   - F4 resolve_selected_persona 两版签名一致
-   - F5 真实 InternalAgentSubStage._save_to_history 跳过 _no_save 消息；
-     conversation=None 短路写回（与 uctx 行为对齐）
-   - F6 extra part 独立于 prompt 本体
-5. 合同冻结：docs/ADR.md ADR-001..008（范围/身份/注入/uctx 排除协议/
-   Relation 快照/存储/决策顺序/命令面）。
-6. 宿主事实核对（源码级，供 ADR 引用）：
-   - 内置 Agent：OnWaitingLLMRequest → build_main_agent（人格在此解析）→
-     OnLLMRequest(req) → Runner → _save_to_history（internal.py:225/239/277）。
-   - uctx 捕获链：on_llm_request(priority=0) 内 begin_turn 即写库 +
-     req.conversation=None；on_decorating_result 唯一提交点。
-     排除必须发生在其钩子之前 → 高优先级钩子 + event extra 标志（已实测可行）。
-   - Relation Arc 无对外程序化 API；直读其 SQLite（accounts/timed_safety）
-     为只读联动路径，身份映射 platform:sender，双 scope 探测。
-   - 插件数据目录：StarTools.get_data_dir（两版一致）。
-   - 管理员权限：filter.permission_type(PermissionType.ADMIN)。
+| 阶段 | 提交 | 要点 |
+| --- | --- | --- |
+| P0 | ccd9265 | 现场核对、Git 初始化、ADR-001..008 冻结、真实宿主验证 12/12×2 |
+| P1 | c5b8786 | 四元身份/枚举校验/SQLite 乐观锁与 epoch，33/33×2 |
+| P2 | e8051d6 | 决策引擎与受限渲染（冲突取严/节奏压制/注入防御），28/28×2 |
+| P3 | 492358e | 命令层/权限/clear 确认/删除边界 + 真实宿主导入冒烟，25+4×2 |
+| P4 | 18afbcc | priority=20 注入器/uctx 三态/真实 Runner 与写回证据，21/21×2 |
+| P5 | 26429a0 | Relation 只读快照 + uctx 捕获前排除补丁（基线 d8a7147），23/23×2 |
+| P6 | fd1cc10 | V01–V18 映射定稿、绑定层/生命周期/流式失败补充，19/19×2；全量 165×2 |
+| P7 | （本提交） | README/CHANGELOG/HANDOFF/打包/泄漏检查/V19–V20 |
 
-## P0 待办（无阻塞；移交后续阶段）
+全量回归（最终提交）：4.28.0 与 4.26.0 各 8 脚本 165 项断言 0 FAIL 0 跳过。
+复现命令见 docs/ACCEPTANCE.md。
 
-- Context Bridge 隔离副本补丁（P5）：按 ADR-004 制作并回归。
-- Relation Arc 快照读取实现与组合测试（P5）。
+## 重要外部事件记录
 
-## 下一步：P1（MIS-147）
+- uctx 基线在 P5 执行期间由 8477eba 前进到 d8a7147（该项目独立验收
+  返工，非本插件改动）；补丁以 d8a7147 为精确基线制作并验证。
+- Relation Arc 基线 913ca59 全程未变（本插件只读）。
+- Mimosa 工作区级门禁多次拦截源于**其他既有插件**（r18_filter/
+  status_panel/qq_memory 路径穿越等）的真实发现；本仓库两次聚焦
+  深度扫描 findings=0。外部插件不在本轮修改授权内，保留为用户侧
+  待办，不宣称工作区安全。
 
-实现 pref_profile/identity.py、store.py 及其真实宿主测试（V01/V02/V04/V05/V07
-对应的存储层断言）。
+## 待验收（不在本轮判定范围）
+
+- A0/MIS-154：Codex 独立验收（最终 SHA、V01–V20 证据复跑、ZIP）。
+- A1/MIS-155：用户实机 V21（模型效果差异）/V22（QQ 行为）。
+- F1/F2（MIS-156/157）：Pages 面板、确认式学习，后续 Backlog。
+
+## 已知限制（如实）
+
+- 脱网环境未端到端执行宿主 CommandFilter 分发链（需完整
+  PipelineContext）；已覆盖真实注册与真实绑定层方法（V22 实机覆盖）。
+- V21 模型遵从度未实测；注入文本措辞已含"不发起/即停"约束但效果
+  属实机验收。
