@@ -52,7 +52,9 @@ V21/V22 归 MIS-155 实机，未实测不报 PASS。
   （main.py、pref_profile/、metadata.yaml、_conf_schema.json、
   requirements.txt）+ 文档（README/CHANGELOG/HANDOFF/docs/）+
   tests/ + patches/。不含 .git、data、__pycache__、.mimosa、dist。
-- SHA-256 记录于 dist/SHA256SUMS.txt；补丁哈希于 patches/SHA256SUMS.txt。
+- SHA-256 记录于 dist/SHA256SUMS.txt（包外清单，避免包内自引用失真）；
+  补丁哈希于 patches/SHA256SUMS.txt。ZIP 于文档定稿后重打包，
+  内容与最终提交一致。
 - 干净安装验证：数据目录删除后全新初始化（p6·G5）；真实宿主导入
   （p3_import_check 双 venv）。
 

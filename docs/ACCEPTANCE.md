@@ -29,7 +29,7 @@
 | V17 | 重载/重启/停用/并发后恢复 | p1·E4（重启持久化）；p6·G4a-G4d（terminate→重载全恢复）；p6·G6b（无类级可变状态） | PASS | PASS |
 | V18 | 双版本真实包集成与干净装/卸 | 全部脚本双 venv 通过；p6·G5（数据目录删除重建）/G6a（安装件完整）；p3_import_check（真实注册） | PASS | PASS |
 | V19 | 交付物无真实数据泄漏 | 最终提交时：`git ls-files` 全量核对仅源码/文档/测试/补丁；ZIP 解包 35 项清单核对无 db/log/凭据/venv/宿主源码/.git；内容扫描长数字均为代码常量（busy_timeout/max_context_tokens）或合成值（10001/99999） | PASS（P7） | PASS（P7） |
-| V20 | SHA/补丁/证据一致性 | ZIP sha256:5f1a5808…（dist/SHA256SUMS.txt）；补丁 sha256:925d2322…（patches/SHA256SUMS.txt，基线 d8a7147）；全量回归在最终提交复跑通过（见 STATUS 阶段表） | PASS（P7） | PASS（P7） |
+| V20 | SHA/补丁/证据一致性 | ZIP 与补丁的 SHA-256 以**包外** dist/SHA256SUMS.txt、patches/SHA256SUMS.txt 为准（避免包内自引用失真）；包内容与最终提交一致（重打包于文档定稿后）；全量回归在最终提交复跑通过（见 STATUS 阶段表） | PASS（P7） | PASS（P7） |
 
 ## 待实际验收（不计入自动化 PASS）
 
