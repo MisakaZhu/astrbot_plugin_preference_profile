@@ -250,8 +250,8 @@ def main() -> int:
             )
         )
         check(
-            "B03 方向互补措辞",
-            d.items[0].direction_phrase == "按对方节奏回应",
+            "B03 方向互补措辞（用户主动/角色接受）",
+            d.items[0].direction_phrase == "该维度以用户主动发起为宜，你以顺应回应为主，不主动发起",
         )
         d = evaluate(
             turn(
@@ -259,7 +259,10 @@ def main() -> int:
                 bot_entries=[entry(direction="active", status="like", owner="bot")],
             )
         )
-        check("B04 同向措辞保守", d.items[0].direction_phrase == "自然")
+        check(
+            "B04 同向（双主动）措辞有序",
+            d.items[0].direction_phrase == "双方都偏好主动：自然互动即可，避免抢话或强加",
+        )
 
         # -- 渲染与注入防御 -----------------------------------------------------
         d = evaluate(

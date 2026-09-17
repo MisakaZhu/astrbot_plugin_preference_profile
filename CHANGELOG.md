@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.1（2026-09-17 返工候选）
+
+修复 Codex 独立复核（0c32cee）发现的 R1–R6：
+
+- R1 群聊被当私聊（绑定方法真假值恒真）→ 统一真实方法判定。
+- R2 正式入口共享守卫未接通（空参 BridgeGuard 恒 no_bridge）→
+  接入真实 star_map、探测实时化、标志写入失败保守禁注入。
+- R3 漏读管理员 interaction_safety → 对齐 effective_interaction_safety
+  语义（base/timed 取高、纯只读、双 scope）。
+- R4 命令与请求人格不一致 → 读取当前选中会话 + 4.26 provider_settings。
+- R5 epoch 读后未校验 → 注入提交前重新校验，off/clear 使未提交快照失效。
+- R6 方向无序 → 九组合有序真值表，互换产生不同指导。
+
+新增 tests/r_rework_check.py（真实事件/CommandFilter/call_handler/
+正式构造/装卸，双 venv 25/25）；Codex 六组反例在新副本上 R1/R2/R3/R5/R6
+翻绿（双版本），R4 见 HANDOFF 替身差异说明。
+
 ## 0.1.0（2026-09-17）
 
 首版本地候选（P0–P7 完成，待独立验收 A0 与实机 A1）。

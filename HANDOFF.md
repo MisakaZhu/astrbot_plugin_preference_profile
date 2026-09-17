@@ -1,7 +1,43 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.0
+# HANDOFF — astrbot_plugin_preference_profile v0.1.1（返工候选）
 
-交接日期：2026-09-17。交付状态：**P0–P7 全部完成（In Review），
-本地候选可供 Codex 独立验收（A0/MIS-154）**。未宣称实机、云端或发布完成。
+交接日期：2026-09-17（返工轮）。交付状态：**R1–R6 已修复，本地门槛
+满足的新候选，待 Codex 独立复验（A0/MIS-154）**。未宣称实机、云端或
+发布完成。
+
+## 0. 返工摘要（0c32cee → 本候选）
+
+| 项 | 根因 | 修复 | 旧失败/新通过证据 |
+| -- | -- | -- | -- |
+| R1 | `bool(getattr(event,"is_private_chat",False))` 取绑定方法真假值恒真；测试以 @property 伪造接口 | identity.host_is_private_chat 统一判定（callable 调用、异常拒绝）；fakes 删 property | Codex 六反例 old=缺陷 true → new 双版本 false；r_rework RR1a-e |
+| R2 | 生产 `BridgeGuard()` 空参恒 no_bridge | 正式构造传真实 star_map；探测实时化（装卸/停用/activated=False）；标志写失败保守禁注入 | 同上 R2 行；r_rework RR2a-f |
+| R3 | 快照只收 state_json 键名，漏读 interaction_safety 值 | base=state_json.interaction_safety 值，与 timed 按 effective_interaction_safety 秩合并取高；纯 SELECT 过期判定；双 scope 取严 | 同上 R3 行；r_rework RR3a-d（真实 RelationStore API） |
+| R4 | 命令解析 conversation=None；4.26 缺 provider_settings | 命令读当前选中会话（get_curr_conversation_id→get_conversation，与请求 _get_session_conv 同源）；resolve 按签名适配 provider_settings | r_rework RR4a/RR4b（真实解析算法+受控会话）；见下"R4 复现脚本替身差异" |
+| R5 | epoch 读后未再校验 | append 前重校验 enabled/epoch；append 即提交（不可撤回如实声明） | 同上 R5 行；r_rework RR5a/b（受控 await 边界） |
+| R6 | 方向集合化丢序 | 有序九组合真值表 | 同上 R6 行；r_rework RR6a/b |
+
+**R4 复现脚本替身差异（向 Codex 说明）**：independent_repro.py 的
+create_plugin 以 SimpleNamespace 提供 context 且未包含
+conversation_manager（真实宿主 Context 必有该属性），其
+get_config 亦无 provider_settings。在此替身下命令人格无会话信息可读、
+只能走宿主默认链（4.28→配置默认；4.26→无默认则 None），与手工注入
+persona_B 的 req 不一致是信息集差异而非解析缺陷——命令侧不存在获取
+persona_B 的通道，该判定在正确实现下不可能翻绿。复验请使用提供
+conversation_manager 的替身（等价于 r_rework_check 的
+ControlledConversationManager），真实宿主中该属性由 Context 注入
+（astrbot/core/star/context.py:157）。
+
+### 返工验证
+
+- 本仓库 tests/r_rework_check.py：双 venv 各 25/25（真实事件/
+  CommandFilter/call_handler/正式构造/star_map 装卸/真实 RelationStore/
+  真实人格算法/受控调度）。
+- Codex independent_repro.py 于新候选独立副本（.tmp_rework_verify/new，
+  已验证后清理）：4.28 与 4.26 上 R1/R2/R3/R5/R6 均
+  defect_reproduced=false；R4 true 属上述替身差异。旧候选副本
+  （old=0c32cee）六项均 true（复核结论可复现）。
+- 全量回归：双 venv 各 8 脚本 + import 194 项断言 0 FAIL 0 跳过
+  （p6 已改为正式构造，不再 __new__ 旁路）。
+
 
 ## 1. 最终状态
 

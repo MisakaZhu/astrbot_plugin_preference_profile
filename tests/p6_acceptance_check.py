@@ -43,6 +43,8 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 
 from astrbot.api.provider import ProviderRequest  # noqa: E402
+from astrbot.api.star import StarTools  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 from astrbot.core.astr_agent_run_util import run_agent  # noqa: E402
 from astrbot.core.agent.runners.tool_loop_agent_runner import (  # noqa: E402
     ToolLoopAgentRunner,
@@ -77,22 +79,27 @@ IDENTITY = build_identity(
 
 
 def make_plugin(db_dir: Path) -> plugin_main.PreferenceProfilePlugin:
-    """绕过 Star.__init__ 构造插件实例（绑定层验证，无宿主运行时上下文）。"""
+    """正式插件构造（真实 __init__；仅隔离数据目录与外部依赖）。
 
-    p = plugin_main.PreferenceProfilePlugin.__new__(
-        plugin_main.PreferenceProfilePlugin
+    返工要求：不得以 __new__ 旁路构造后称完整集成通过。
+    """
+
+    context = SimpleNamespace(
+        persona_manager=FakePersonaManager(),
+        get_config=lambda: {
+            "data": str(db_dir.parent / "host_data"),
+            "provider_settings": {"default_personality": "persona_A"},
+        },
+        conversation_manager=None,
     )
-    p._config = {"admin_enabled": True, "relation_link_enabled": False,
-                 "max_inject_items": 6, "max_inject_chars": 600}
-    p._astrbot_config = None
-    p._data_dir = db_dir
-    p._store = PrefStore(db_dir / "preference_profile.db")
-    p._commands = CommandService(p._store, p._config, _fake_resolver)
-    p._bridge_guard = BridgeGuard()
-    p._relation_reader = None
-    p._injector = PreferenceInjector(
-        p._store, p._config, lambda: FakePersonaManager(), p._bridge_guard, None
-    )
+    config = {
+        "admin_enabled": True,
+        "relation_link_enabled": False,
+        "max_inject_items": 6,
+        "max_inject_chars": 600,
+    }
+    with patch.object(StarTools, "get_data_dir", return_value=db_dir):
+        p = plugin_main.PreferenceProfilePlugin(context, config)
     return p
 
 

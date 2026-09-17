@@ -11,23 +11,23 @@
 | 编号 | 行为 | 证据（脚本·断言） | 4.28.0 | 4.26.0 |
 | --- | --- | --- | --- | --- |
 | V01 | 默认关闭不采集 | p2·D01；p3·C03/C04；p4·H4a；p6·G5（数据目录删除后默认关） | PASS | PASS |
-| V02 | 平台/机器人/人格/用户隔离 | p1·I1a-I1e/I2a-I2e；p4·H4e（他人不注入）；真实事件→身份在 p4/p5 全链路使用 | PASS | PASS |
-| V03 | 群聊不读写/展示；伪造不越权 | p3·C01/C02（值不回显）；p4·H4b（不注入）；p6·G2/G3c（绑定层）；sender 取自宿主结构（FakeEvent 同构） | PASS | PASS |
+| V02 | 平台/机器人/人格/用户隔离 | p1·I1a-I1e/I2a-I2e；p4·H4e；r_rework·RR4a/RR4b（真实解析算法下命令与请求同人格） | PASS | PASS |
+| V03 | 群聊不读写/展示；伪造不越权 | r_rework·RR1a-RR1e（真实事件+CommandFilter+call_handler：群聊仅通用引导、零注入、私聊对照正常）；p3·C01/C02 | PASS | PASS |
 | V04 | 模板与用户档案分离；权限边界 | p1·E3a-E3c；p3·C17-C24；p6·G3a/G3d | PASS | PASS |
-| V05 | 状态/方向独立；非法输入被拒 | p1·E1/E2a-E2i；p2·D05-D12 | PASS | PASS |
-| V06 | 冲突/禁止/强度/关系暂停优先 | p2·D06-D12/R01-R04；p5·RA8（真实快照联动压制） | PASS | PASS |
+| V05 | 状态/方向独立；非法输入被拒 | p1·E1/E2a-E2i；p2·D05-D12；r_rework·RR6b（九方向组合唯一） | PASS | PASS |
+| V06 | 冲突/禁止/强度/关系暂停优先 | p2·D06-D12/R01-R04；r_rework·RR3a-RR3d（真实 RelationStore 管理员/timed/global） | PASS | PASS |
 | V07 | 持久化/事务/revision 冲突 | p1·E4/E5a-E5e/E6 | PASS | PASS |
-| V08 | 关闭/删除失效；慢请求不复活 | p1·E6（epoch）；p3·C05/C06/C13-C16；p4·H5（off 后新轮次不注入） | PASS | PASS |
-| V09 | 真实宿主命令；群聊仅引导；管理不进模型 | p6·G1-G3（真实绑定层方法）；p3·C01/C02；命令轮次无 LLM 请求（结构上不触发 on_llm_request） | PASS | PASS |
+| V08 | 关闭/删除失效；慢请求不复活 | p1·E6；p3·C05/C06/C13-C16；p4·H5；r_rework·RR5a（await 边界 clear 后不注入）/RR5b（对照） | PASS | PASS |
+| V09 | 真实宿主命令；群聊仅引导；管理不进模型 | r_rework·RR1（真实 CommandFilter.filter + call_handler 分发）；p6·G1-G3（正式构造绑定层） | PASS | PASS |
 | V10 | 真实请求可见偏好；无关不强套；无额外调用 | p4·H7a/H7b（真实 Runner 一次调用含偏好块）、H8（无数据零干预） | PASS | PASS |
 | V11 | 注入去重/上限/不覆盖他人提示 | p4·H2c（不改 system/contexts/tools/conversation）、H3（不双注）；p2·B01/B09（预算） | PASS | PASS |
 | V12 | 临时块不入持久化；回复/轨迹隔离 | p0·F5（真实 _save_to_history 跳过）；p4·H2b/H7c；p5·B1/B3（uctx 账本级隔离） | PASS | PASS |
-| V13 | Relation Arc 各形态 + 原语义回归 | p5·RA1-RA8（正常/缺失/无账户/过期/paused/只读证明）；原库不写（RA7）；六维/绑定不由本插件触碰（结构只读） | PASS | PASS |
-| V14 | 偏好私聊不入共享库；群聊读不到 | p5·B1d/B3a/B3b（同身份后续读历史：无偏好轮次、有普通轮次） | PASS | PASS |
-| V15 | 钩子顺序/重试/流式/失败/取消 | p0·F2/F3（顺序与标志）；p4·H3、p5·B5（重试）；p6·S1（流式）/S2（模型失败）/S3（恢复）；uctx abort 轨道由其 decorating_result 兜底（补丁不触及该轨） | PASS | PASS |
-| V16 | 缺协议先禁用并解释 | p4·H6c/H6d；p5·B6（未打补丁 uctx 在场 → 私人注入禁用）；命令层说明文案（commands.py status/on 提示） | PASS | PASS |
-| V17 | 重载/重启/停用/并发后恢复 | p1·E4（重启持久化）；p6·G4a-G4d（terminate→重载全恢复）；p6·G6b（无类级可变状态） | PASS | PASS |
-| V18 | 双版本真实包集成与干净装/卸 | 全部脚本双 venv 通过；p6·G5（数据目录删除重建）/G6a（安装件完整）；p3_import_check（真实注册） | PASS | PASS |
+| V13 | Relation Arc 各形态 + 原语义回归 | r_rework·RR3a-RR3d（真实管理员 API/timed 过期/global）；p5·RA1-RA8；只读证明（RA7 + 纯 SELECT 过期判定） | PASS | PASS |
+| V14 | 偏好私聊不入共享库；群聊读不到 | r_rework·RR2a-RR2d（正式构造+真实 star_map：protocol_ok/标志已写/uctx 不接管）；p5·B1-B6 | PASS | PASS |
+| V15 | 钩子顺序/重试/流式/失败/取消 | p0·F2/F3；r_rework·RR2（装卸/停用路径）；p4·H3、p5·B5（重试）；p6·S1/S2/S3（正式构造下流式/失败/恢复） | PASS | PASS |
+| V16 | 缺协议先禁用并解释 | r_rework·RR2e（停用→no_bridge）/RR2f（无协议→不注入）；p4·H6c/H6d；p5·B6 | PASS | PASS |
+| V17 | 重载/重启/停用/并发后恢复 | p6·G4a-G4d（正式构造 terminate→重载）；r_rework·RR2e（协作插件停用路径）；p1·E4 | PASS | PASS |
+| V18 | 双版本真实包集成与干净装/卸 | 全部脚本（含正式构造 p6 与 r_rework）双 venv 通过；p6·G5/G6a；p3_import_check | PASS | PASS |
 | V19 | 交付物无真实数据泄漏 | 最终提交时：`git ls-files` 全量核对仅源码/文档/测试/补丁；ZIP 解包 35 项清单核对无 db/log/凭据/venv/宿主源码/.git；内容扫描长数字均为代码常量（busy_timeout/max_context_tokens）或合成值（10001/99999） | PASS（P7） | PASS（P7） |
 | V20 | SHA/补丁/证据一致性 | ZIP 与补丁的 SHA-256 以**包外** dist/SHA256SUMS.txt、patches/SHA256SUMS.txt 为准（避免包内自引用失真）；包内容与最终提交一致（重打包于文档定稿后）；全量回归在最终提交复跑通过（见 STATUS 阶段表） | PASS（P7） | PASS（P7） |
 

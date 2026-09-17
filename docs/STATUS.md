@@ -1,8 +1,11 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-17（P7 交付定稿）
+最后更新：2026-09-17（R1–R6 返工候选）
 
-## 当前状态：P0–P7 全部完成（In Review），本地候选待 Codex 独立验收（A0）
+## 当前状态：R1–R6 返工完成（P0–P7 + 返工均 In Review），新候选待 Codex 独立复验（A0）
+
+返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
+详见 HANDOFF 返工章节与 tests/r_rework_check.py。
 
 - 分支 `main`，最终提交与工作区状态以 `git log --oneline -1` 与
   `git status --short` 实查为准；P0–P7 各阶段提交见 git log。

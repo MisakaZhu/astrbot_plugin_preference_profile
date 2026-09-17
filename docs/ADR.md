@@ -139,3 +139,29 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   绝不通过 LLM 响应）。
 - 标签集合：内置枚举（如 `话题偏好`、`称呼`、`玩笑`、`亲密度` 等中性维度）
   + 自定义短标签（限 2-16 字符、数量上限 20/人），仅作数据。
+
+
+## 返工修订（Codex 复核 0c32cee 后，R1–R6）
+
+- **ADR-001/008 修订（R1）**：所有入口的私聊判定统一为
+  `identity.host_is_private_chat`——真实宿主 `is_private_chat()` 是方法，
+  直接 `bool(getattr(...))` 取绑定方法真假值恒真。异常时拒绝私人操作。
+  测试替身不得以 `@property` 伪造接口形状（已删除）。
+- **ADR-004 修订（R2）**：生产构造必须以真实宿主注册表
+  `astrbot.core.star.star.star_map` 构造 BridgeGuard；探测实时化
+  （无缓存，装卸/停用后正确；`activated=False` 视为不在场）；
+  `protocol_ok` 下排除标志写入失败 → 本轮保守禁注入。
+- **ADR-005 修订（R3）**：快照读取 `state_json.interaction_safety` 的
+  实际值（管理员 `set_interaction_safety_admin` 写入处），与 timed_safety
+  按 `effective_interaction_safety` 同一秩合并（取更高等级）；过期判定
+  用纯 SELECT（不调用带 DELETE 副作用的 `active_timed_safety`）；
+  global/session 双 scope 各自计算后取全局更严格值。
+- **ADR-002 修订（R4）**：命令人格经
+  `conversation_manager.get_curr_conversation_id → get_conversation`
+  读取当前选中会话 persona_id（与请求轮次 `_get_session_conv` 同源）；
+  `resolve_persona_scope` 按宿主签名适配 4.26 的 `provider_settings`
+  （自 `context.get_config()["provider_settings"]` 取，不写死默认人格）。
+- **ADR-006/003 修订（R5）**：注入块 append 前重新校验本人 enabled 与
+  epoch（异步边界后失效）；append 即视为提交，此后不可撤回（如实边界）。
+- **ADR-007 修订（R6）**：方向措辞改为有序真值表（user_dir, bot_dir）
+  九组合唯一，互换双方方向产生不同指导。
