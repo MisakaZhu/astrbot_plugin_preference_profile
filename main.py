@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 from astrbot.api import AstrBotConfig, logger
@@ -26,6 +27,7 @@ from .pref_profile.identity import (
     resolve_persona_scope,
 )
 from .pref_profile.injection import PreferenceInjector
+from .pref_profile.relation_snapshot import RelationSnapshotReader
 from .pref_profile.store import PrefStore
 
 
@@ -49,12 +51,35 @@ class PreferenceProfilePlugin(Star):
             self._store, self._config, self._resolve_identity
         )
         self._bridge_guard = BridgeGuard()
+        self._relation_reader: Optional[RelationSnapshotReader] = None
         self._injector = PreferenceInjector(
             self._store,
             self._config,
             lambda: self.context.persona_manager,
             self._bridge_guard,
+            self._load_relation_snapshot,
         )
+
+    def _load_relation_snapshot(self, identity, event):
+        """Relation Arc 只读快照（缺库/异常→保守不可用，ADR-005）。"""
+
+        if self._relation_reader is None:
+            try:
+                host_config = self.context.get_config() or {}
+                data_root = Path(
+                    host_config.get(
+                        "plugin.data_dir", host_config.get("data", "./data")
+                    )
+                )
+                self._relation_reader = RelationSnapshotReader(data_root)
+            except Exception:  # noqa: BLE001 - 配置异常按关系不可用处理
+                from .pref_profile.policy import RelationSnapshot
+
+                async def _none(identity, event):
+                    return RelationSnapshot.unavailable()
+
+                return _none(identity, event)
+        return self._relation_reader.load(identity, event.unified_msg_origin)
 
     async def initialize(self) -> None:
         await super().initialize()

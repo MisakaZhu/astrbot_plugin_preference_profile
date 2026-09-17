@@ -34,7 +34,7 @@ class PreferenceInjector:
         persona_manager_getter: Callable[[], Any],
         bridge_guard: BridgeGuard,
         relation_loader: Optional[
-            Callable[[PrefIdentity], Awaitable[RelationSnapshot]]
+            Callable[[PrefIdentity, Any], Awaitable[RelationSnapshot]]
         ] = None,
     ):
         self._store = store
@@ -101,7 +101,7 @@ class PreferenceInjector:
         if self._relation_loader is not None and self._config.get(
             "relation_link_enabled", True
         ):
-            relation = await self._relation_loader(identity)
+            relation = await self._relation_loader(identity, event)
 
         try:
             max_items = int(self._config.get("max_inject_items", 6))

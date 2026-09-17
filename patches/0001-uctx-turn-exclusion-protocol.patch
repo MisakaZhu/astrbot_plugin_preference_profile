@@ -1,0 +1,37 @@
+diff --git a/main.py b/main.py
+index 4bbf431..37a9c7c 100644
+--- a/main.py
++++ b/main.py
+@@ -27,6 +27,13 @@ from .uctx_bridge.scope import MembershipStore, ScopeConfig, ScopeResolver
+ 
+ _HEARTBEAT_INTERVAL_SECONDS = 60.0
+ 
++# 偏好私聊轮次排除协议版本（pref_profile_turn_exclusion_v1）。
++# astrbot_plugin_preference_profile 通过 star_map 检测本常量判断该协议
++# 可用；不存在本常量的版本会被其保守降级（不注入私人偏好）。
++UCTX_EXCLUDE_PROTOCOL = "pref_profile_turn_exclusion_v1"
++# 排除标志在 event extra 上的键（偏好插件在更高优先级钩子内写入）。
++UCTX_EXCLUDE_EXTRA_KEY = "uctx_bridge_turn_excluded"
++
+ 
+ @register(
+     "astrbot_plugin_user_context_bridge",
+diff --git a/uctx_bridge/bridge.py b/uctx_bridge/bridge.py
+index 47075c9..48d376f 100644
+--- a/uctx_bridge/bridge.py
++++ b/uctx_bridge/bridge.py
+@@ -206,6 +206,14 @@ class ContextBridge:
+         读取到本轮完整结果（R3）。
+         """
+ 
++        # 偏好私聊轮次排除协议（pref_profile_turn_exclusion_v1）：
++        # 更高优先级的偏好插件已在捕获前于 event extra 打上排除标志，
++        # 本轮输入/回复/工具轨迹一律不进入跨会话共享账本——不接管、
++        # 不 begin_turn、不改 contexts / conversation，后续钩子因无
++        # PendingTurn 自然短路。
++        if event.get_extra("uctx_bridge_turn_excluded") is not None:
++            return False
++
+         persona_scope = await resolve_persona_scope(
+             self._get_persona_manager(), event, getattr(req, "conversation", None)
+         )
