@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import shutil
 import sys
 import tempfile
@@ -339,7 +340,13 @@ async def main() -> int:
         from astrbot_plugin_relation_arc.relation_store import RelationStore
 
         root = next_dir()
-        rs = RelationStore(root / "plugin_data" / "astrbot_plugin_relation_arc")
+        rr_root = root / "plugin_data" / "astrbot_plugin_relation_arc"
+        rs = RelationStore(rr_root)
+        # 真实部署恒有的 config.json（session 模式）
+        (rr_root / "config.json").write_text(
+            json.dumps({"config_version": 7, "is_global_relation": False}),
+            encoding="utf-8",
+        )
         ev = real_event(mid="rr3")
         rs.set_interaction_safety_admin(
             "aiocqhttp:10001", "session", ev.unified_msg_origin, "pause_intimacy"
@@ -395,7 +402,11 @@ async def main() -> int:
             snap3.interaction_rhythm == "normal",
             f"snap={snap3.interaction_rhythm}",
         )
-        # global scope 管理员暂停
+        # global scope 管理员暂停（切 global 模式 config）
+        (rr_root / "config.json").write_text(
+            json.dumps({"config_version": 7, "is_global_relation": True}),
+            encoding="utf-8",
+        )
         rs.set_interaction_safety_admin(
             "aiocqhttp:10001", "global", "", "pause_intimacy"
         )

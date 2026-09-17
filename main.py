@@ -64,6 +64,7 @@ class PreferenceProfilePlugin(Star):
             lambda: self.context.persona_manager,
             self._bridge_guard,
             self._load_relation_snapshot,
+            provider_settings_getter=self._provider_settings,
         )
         self._commands = CommandService(
             self._store, self._config, self._resolve_identity
@@ -84,12 +85,14 @@ class PreferenceProfilePlugin(Star):
 
     async def _current_conversation_persona_id(
         self, event: AstrMessageEvent
-    ) -> Optional[str]:
+    ) -> Optional[str] | LookupError:
         """当前 UMO 选中会话的 persona_id（与请求轮次同一会话，R4）。
 
         与宿主 _get_session_conv 同源：get_curr_conversation_id →
-        get_conversation。读取失败返回 None（交由宿主解析优先级继续，
-        不写死人格）。
+        get_conversation。
+        返回 LookupError 表示"存在选中会话但读取失败"——调用方必须
+        拒绝私人档案操作，不得当作"成功读取且未指定人格"落默认链。
+        其他非存在性异常（如无会话记录）走 None（宿主默认解析链）。
         """
 
         manager = getattr(self.context, "conversation_manager", None)
@@ -104,16 +107,31 @@ class PreferenceProfilePlugin(Star):
             conversation = await manager.get_conversation(
                 event.unified_msg_origin, cid
             )
+            if conversation is None:
+                return None
             return getattr(conversation, "persona_id", None)
-        except Exception:  # noqa: BLE001 - 读取失败走默认解析链
-            return None
+        except Exception as exc:  # noqa: BLE001 - 读取失败≠未指定人格（R4）
+            return LookupError(str(exc))
 
-    def _provider_settings(self) -> Optional[dict]:
-        """4.26 默认人格解析需要 provider_settings（default_personality）。"""
+    def _provider_settings(self, event: AstrMessageEvent = None) -> Optional[dict]:
+        """按当前 UMO 取作用域配置中的 provider_settings（R4）。
+
+        真实宿主 Context.get_config(umo) 优先返回该会话作用域配置；
+        4.26 的默认人格解析需要 provider_settings.default_personality。
+        读取异常返回 None（交由解析优先级链，不写死人格）。
+        """
 
         try:
-            cfg = self.context.get_config() or {}
-            ps = cfg.get("provider_settings")
+            getter = self.context.get_config
+            umo = getattr(event, "unified_msg_origin", None) if event else None
+            try:
+                cfg = getter(umo=umo) if umo is not None else getter()
+            except TypeError:
+                # 替身/旧签名不支持 umo 参数：退化为全局配置
+                cfg = getter()
+            if cfg is None:
+                return None
+            ps = cfg.get("provider_settings") if isinstance(cfg, dict) else None
             return ps if isinstance(ps, dict) else None
         except Exception:  # noqa: BLE001
             return None
@@ -122,16 +140,23 @@ class PreferenceProfilePlugin(Star):
         """命令/钩子共用：解析失败返回 None（调用方保守跳过）。
 
         conversation 取当前选中会话（R4：命令与请求同一生效人格）。
+        会话读取失败（LookupError）→ 返回 None 拒绝操作。
         """
 
-        conversation = SimpleNamespace(
-            persona_id=await self._current_conversation_persona_id(event)
-        )
+        conversation_persona = await self._current_conversation_persona_id(event)
+        if isinstance(conversation_persona, LookupError):
+            # 读取失败 ≠ 未指定人格：拒绝，绝不落可能串档的默认链
+            logger.warning(
+                "preference_profile 当前会话读取失败，拒绝档案操作",
+                exc_info=False,
+            )
+            return None
+        conversation = SimpleNamespace(persona_id=conversation_persona)
         persona_scope = await resolve_persona_scope(
             self.context.persona_manager,
             event,
             conversation,
-            provider_settings=self._provider_settings(),
+            provider_settings=self._provider_settings(event),
         )
         if persona_scope is None:
             return None
@@ -192,6 +217,17 @@ class PreferenceProfilePlugin(Star):
     @filter.on_llm_request(priority=20)
     async def on_llm_request(self, event: AstrMessageEvent, req: ProviderRequest):
         await self._injector.handle(event, req)
+
+    @filter.on_llm_request(priority=-1000)
+    async def finalize_request(self, event: AstrMessageEvent, req: ProviderRequest):
+        """钩子链末尾（Runner 组装前）的最终失效校验（R5）。
+
+        对本插件已追加但宿主尚未发送的临时块校验 admin/enabled/epoch，
+        失效则按对象身份移除（仅本插件块，其他插件内容不动）。
+        已进入 Runner/已发出的内容不可撤回（如实边界）。
+        """
+
+        self._injector.finalize(event, req)
 
     # -- 命令组（/xp 主名，/偏好 中文别名） ---------------------------------
 

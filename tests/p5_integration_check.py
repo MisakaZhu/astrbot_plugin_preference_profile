@@ -13,6 +13,7 @@ Part B：uctx 排除协议组合（B1-B6，V12/V14/V15/V16 部分）
 from __future__ import annotations
 
 import asyncio
+import json
 import shutil
 import sqlite3
 import sys
@@ -99,6 +100,13 @@ def make_arc_db(root: Path, *, with_account=True, paused=0, timed=None):
             ("aiocqhttp:10001", "session", "aiocqhttp:FriendMessage:10001",
              "{}", paused, 1, 0.0, '{"interaction_safety":"normal","mood":"playful"}'),
         )
+    # 真实部署 PluginConfigManager.load_or_create 恒写 config.json；
+    # 二轮合同：无 config → 无法确认生效 scope → 保守不可用。
+    (d / "config.json").write_text(
+        json.dumps({"config_version": 7, "is_global_relation": False}),
+        encoding="utf-8",
+    )
+    conn.execute("PRAGMA user_version=12")  # 真实 RelationStore 恒标记 12
     if timed is not None:
         level, expires = timed
         conn.execute(

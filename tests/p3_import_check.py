@@ -52,10 +52,11 @@ def main() -> int:
 
     llm_hooks = [h for h in star_handlers_registry
                  if h.handler_module_path == mod and h.event_type == EventType.OnLLMRequestEvent]
+    prios = sorted(h.extras_configs.get("priority", 0) for h in llm_hooks)
     check(
-        "LLM 钩子恰一个且 priority=20（先于 uctx 捕获）",
-        len(llm_hooks) == 1 and llm_hooks[0].extras_configs.get("priority") == 20,
-        f"n={len(llm_hooks)}",
+        "LLM 钩子两个：主注入 priority=20 + 收尾校验 -1000",
+        prios == [-1000, 20],
+        f"prios={prios}",
     )
 
     meta = star_map.get(mod)
