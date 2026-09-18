@@ -262,7 +262,8 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   原样保留）；运行时清理只置空「含本轮令牌且带 _no_save 临时标记」
   的块，同文同 temp 的他人块（不含本轮令牌）保留。
 - **finalize 令牌轮换**：注入后的合法请求钩子（priority 介于 20 与
-  -1000）可能复制含旧令牌的本插件全文。finalize（-1000，钩子链末尾、
+  -1000）可能复制含旧令牌的本插件全文。finalize（-1000，相对靠后但
+  非链末尾、
   Runner 组装前）按对象身份把存活块令牌轮换为新值并同步 TurnRecord
   ——此后失效清理只按新令牌匹配，更早副本（持旧令牌）不被误删；
   失效分支仍按对象身份移除，不依赖令牌。
@@ -275,3 +276,31 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   边界、foreign 保留）与场景构造不变；冻结原版探针只读保留于
   偏好管理-独立复核-f77d345-20260918/，适配副本在
   偏好管理-七轮复验-f77d345/。
+
+
+## 八轮返工修订（Codex 复核 abdba20 后，T7 预算 + T5b 受阻裁定）
+
+- **T7 总字符预算（已修）**：max_inject_chars 按合同是「单轮注入总
+  字符上限」，最终表示中的全部模型可见字符（含 14 字归属标识）都计
+  入预算——注入前以「上限−len(token)」作为渲染预算，预算不足按既有
+  规则丢尾部条目，连头部都放不下则不注入；不截断固定边界约束，不改
+  配置语义。
+- **T5b 剩余分支（受阻，构造性不可实现）**：-1000 只是相对排序；
+  finalize 之后合法请求钩子（-2000）与 AgentBegin 任意优先级钩子可
+  复制本插件全文构造同文 temp 副本。转换链双版本实测（宿主源码
+  provider/entities.py assemble_context → model_dump_for_context →
+  tool_loop_agent_runner reset 处 Message.model_validate）：①对象身份
+  不跨重建；②TextPart 模型字段仅 type/text；③私有属性不入 dump
+  （仅宿主特判 _no_save 经 dump/重建保留）；④同文复制副本与本尊在
+  (type,text,_no_save) 全部可观测字段上不可区分。归属判据只能取自
+  文本内容、_no_save、对象身份、位置/数量：前两者被合法复制继承，
+  第三者跨重建丢失，位置/数量为合同禁止——故「复制不继承所有权」
+  在现有宿主 Part 接口下不可实现。保持七场景未修，不引入任何合同
+  禁止的启发式（更多轮换点/更晚写入标识同样会被更晚的合法复制穿透）。
+- **最小宿主支持方案（供宿主侧评估，本轮不实现）**：二选一——
+  ①ContentPart 增加一个经 model_dump_for_context 保留的通用元数据
+  字段（如 owner_key），由源 part 设置、宿主重建链保留；派生副本
+  （他人新建对象）默认不携带，失效清理按 owner_key 精确匹配即可
+  区分复制物；②ProviderRequest.assemble_context 保留「源 part →
+  重建 part」的引用映射（如 req.runtime_parts），注入器按对象身份
+  定位运行时块。两者均不改变既有语义、不污染全局注册表。

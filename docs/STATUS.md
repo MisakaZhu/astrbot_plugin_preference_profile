@@ -1,26 +1,36 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（七轮返工候选 0.1.7）
+最后更新：2026-09-18（八轮返工候选 0.1.8）
 
-## 当前状态：七轮返工完成（T5b 每轮唯一令牌+finalize 轮换），新候选待 Codex 独立复验（A0）
+## 当前状态：八轮返工完成（T7 预算已修；T5b 剩余分支受阻），待 Codex 复验与受阻裁定
 
-七轮返工（edc5a75 → 3aacc15）：Codex 复核 f77d345 确认六轮位置映射
-在九场景钩子组合下退化为「每条消息最后一块」（part_index 恒等于
-extra_count-1）。修复：组装后归属改为每轮唯一令牌（〔偏好标识<hex>〕
-嵌入文本尾部），清理按本轮令牌子串+_no_save 匹配；finalize（-1000，
-请求钩子链末尾）按对象身份轮换存活块令牌，更早同文副本（持旧令牌）
-不被误删。验证：composition 九场景×双版本全绿，适配探针在 a2378c6
-重现 6 缺陷与 Codex 冻结报告一致；terminal 8/ownership 4/lifecycle 17
-×双版本全绿；全量 15 脚本双 venv 全绿（v/w 夹具按「去令牌主体一致」
-等价关系适配，冻结原版探针只读保留）。
+八轮返工（abdba20 → 本候选）：T7——max_inject_chars 按合同计入最终
+表示全部模型可见字符（含 14 字标识），注入前以「上限−标识长」渲染，
+不足丢条目、放不下不注入；新回归 x_rework·X1 在旧 abdba20 行为性
+失败（140>126）、新候选双版通过。T5b 剩余七场景（finalize 后 -2000
+请求钩子 / AgentBegin 各时机合法复制的同文 temp 副本被误删）**受阻**：
+转换链双版本实测（conversion_chain_probe + x_rework·X5）证明对象身份
+不跨重建、TextPart 仅 type/text、私有属性不入 dump、同文复制副本与本
+尊可观测不可区分——现有宿主 Part 接口无法承载「复制不继承所有权」
+的关联，保持未修，交受阻证据与最小宿主支持方案（见 ADR 八轮小节）。
+全量：16 脚本双 venv 各 264 PASS；composition 9/terminal 8/ownership 4/
+lifecycle 17×双版 0 复现；token_repro 12 场景双版仅 T5b 七项保持
+（受阻项）、T7 与对照全过。
+
+### 历史轮次摘要
+
+七轮返工（edc5a75 → 3aacc15/abdba20，0.1.7）：T5b 改每轮唯一令牌
+（〔偏好标识<hex>〕嵌入文本尾部）+ finalize 轮换，修复位置映射退化
+（composition 九场景×双版全绿）。历史基线重核：同一 composition 适配
+探针 a2378c6 每版 1 缺陷、f77d345 每版 6 缺陷、abdba20 为 0。
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
 
 - 分支 `main`，最终提交与工作区状态以 `git log --oneline -1` 与
   `git status --short` 实查为准；P0–P7 各阶段提交见 git log。
-- 安装包：`dist/astrbot_plugin_preference_profile-0.1.0.zip`（SHA-256
-  见 `dist/SHA256SUMS.txt`）。
+- 安装包：`dist/` 下按文件名取当前候选（0.1.8），SHA-256 见
+  `dist/SHA256SUMS.txt`（多版本共存，按包文件名核对，勿取清单首行）。
 - 协作补丁：`patches/0001-uctx-turn-exclusion-protocol.patch`
   （基线 d8a7147，SHA-256 见 `patches/SHA256SUMS.txt`）。
 
@@ -37,7 +47,7 @@ extra_count-1）。修复：组装后归属改为每轮唯一令牌（〔偏好�
 | P6 | fd1cc10 | V01–V18 映射定稿、绑定层/生命周期/流式失败补充，19/19×2；全量 165×2 |
 | P7 | （本提交） | README/CHANGELOG/HANDOFF/打包/泄漏检查/V19–V20 |
 
-全量回归（最终提交）：4.28.0 与 4.26.0 各 8 脚本 165 项断言 0 FAIL 0 跳过。
+全量回归（P7 时点历史）：4.28.0 与 4.26.0 各 8 脚本 165 项断言 0 FAIL 0 跳过；当前统计见顶部八轮状态（16 脚本各 264）。
 复现命令见 docs/ACCEPTANCE.md。
 
 ## 重要外部事件记录

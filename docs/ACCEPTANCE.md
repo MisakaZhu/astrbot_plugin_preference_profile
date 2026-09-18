@@ -1,4 +1,4 @@
-# ACCEPTANCE — 验收矩阵映射（六轮返工后 0.1.6）
+# ACCEPTANCE — 验收矩阵映射（八轮返工后 0.1.8）
 
 - 运行环境：共享 venv（AstrBot 4.28.0 / 4.26.0，Python 3.12.10），脱网、
   合成数据、本地假模型；uctx 组合固定为 d8a7147 + patches/0001 隔离副本，
@@ -23,7 +23,7 @@
 | V08 | 关闭/删除失效（含未发送窗口与多步 Agent） | w_rework·W2（真实工具+中间装饰后 clear/admin_off：第二次调用无旧偏好）/W4（真实取消）；v_rework·V5/V6/V8；u_rework·U2/U3/U5；t_rework·T2；r3·Q6/Q7；r_rework·RR5；p1·E6；p3·C05/C06/C13-C16；p4·H5 | PASS | PASS |
 | V09 | 真实宿主命令；群聊仅引导；管理不进模型 | p7·L2（真实 PluginManager.load 加载后 CommandFilter 参数匹配 + call_handler 完整分发）；r_rework·RR1；p6·G1-G3 | PASS | PASS |
 | V10 | 真实请求可见偏好；无关不强套；无额外调用 | p4·H7a/H7b（真实 Runner 一次调用含偏好块）、H8（无数据零干预） | PASS | PASS |
-| V11 | 注入去重/上限/不覆盖他人提示；位置映射归属不误删 | w_rework·W1（同文 temp 两时机：其他插件原生 mark_as_temp 块保留、本插件块失效，对象身份+Provider 边界判定）；v_rework·V1/V2（同文用户原文）；u_rework·U1；t_rework·T1a-T1d；p4·H2c/H3；p2·B01/B09 | PASS | PASS |
+| V11 | 注入去重/上限（总字符预算含归属标识）/不覆盖他人提示；每轮令牌归属不误删（finalize 前复制场景） | w_rework·W1（同文 temp 两时机：其他插件原生 mark_as_temp 块保留、本插件块失效，对象身份+Provider 边界判定）；v_rework·V1/V2（同文用户原文）；u_rework·U1；t_rework·T1a-T1d；p4·H2c/H3；p2·B01/B09；token_repro 预算两例+x_rework·X1-X4（预算） | 部分（受阻） | 部分（受阻） |
 | V12 | 临时块不入持久化；回复/轨迹隔离 | p0·F5（真实 _save_to_history 跳过）；p4·H2b/H7c；p5·B1/B3（uctx 账本级隔离） | PASS | PASS |
 | V13 | Relation Arc 各形态（含损坏状态降级）+ 原语义回归 | t_rework·T3b-T3e/T3g（非法 JSON/非 dict/非法枚举/类型错 → 降级）；r3·Q4-Q5b（真实 scope/user_version/缺 config）；r_rework·RR3；p5·RA（合成库对齐真实 config+user_version）；只读证明 | PASS | PASS |
 | V14 | 偏好私聊不入共享库；群聊读不到 | r_rework·RR2a-RR2d（正式构造+真实 star_map）；p5·B1-B6 | PASS | PASS |
@@ -58,7 +58,7 @@
 - 归属凭证（七轮定稿）：组装前=TurnRecord.parts 对象身份；组装后=
   **每轮唯一令牌子串匹配**——注入时在文本尾部嵌入随机令牌
   「〔偏好标识<hex>〕」，清理只置空含本轮令牌且带 _no_save 的块；
-  finalize（-1000，请求钩子链末尾）按对象身份轮换存活块令牌并同步
+  finalize（-1000，相对靠后但非链末尾）按对象身份轮换存活块令牌并同步
   登记，此后更早产生的同文副本（持旧令牌）失效清理时不被误删。
   全文相等/公共 _no_save/数量/位置都不能证明创建者（第六/七轮 T5b：
   其他插件可同文同 temp，位置映射 part_index 恒等于 extra_count-1，
@@ -68,7 +68,7 @@
   task 的 done 回调（attach_runtime 时注册，完成/取消均触发）；
   多步 Agent 中间装饰不释放（T6a：仅回收 dead/未挂接）；stop 中止
   与取消等无钩子终态=task-done 回调 + event 弱引用自动回收（T6b）。
-- p7·L4 证明的是事件传播停止- p7·L4 证明的是事件传播停止（stop_event 后续钩子不执行），不等同于
+- p7·L4 证明的是事件传播停止（stop_event 后续钩子不执行），不等同于
   对在途 Agent 协程的 asyncio 取消；p7·L5 证明 terminate 后新轮次
   零注入，不等于在途请求或全局状态的恢复验证。
 - V13"原六维/绑定语义不变"由结构性只读（mode=ro + 纯 SELECT +
