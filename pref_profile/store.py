@@ -39,6 +39,10 @@ class PrefStore:
         self._path = Path(db_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        # 四轮 T2a/T2b：失效事件回调（推式清理，不依赖后续钩子检查点）。
+        # clear_user / set_user_enabled 等任何使既有档案失效的写入都
+        # 会同步触发；回调异常不得阻断存储写入本身。
+        self._invalidation_hooks: list = []
         self._conn = sqlite3.connect(
             str(self._path), timeout=10, isolation_level=None, check_same_thread=False
         )
@@ -85,6 +89,22 @@ class PrefStore:
                 COMMIT;
                 """
             )
+
+    def add_invalidation_hook(self, callback) -> None:
+        """注册失效回调 callback(identity_key: str | None)。
+
+        identity_key=None 表示全局失效（所有身份）。回调在存储事务
+        提交后同步调用；单个回调异常被吞掉不影响其余回调与返回值。
+        """
+
+        self._invalidation_hooks.append(callback)
+
+    def _fire_invalidation(self, identity_key: str | None) -> None:
+        for cb in list(self._invalidation_hooks):
+            try:
+                cb(identity_key)
+            except Exception:  # noqa: BLE001 - 回调失败不影响存储语义
+                pass
 
     def close(self) -> None:
         with self._lock:
@@ -305,6 +325,7 @@ class PrefStore:
                 (identity_key, 1 if enabled else 0, new_epoch, now),
             )
             self._conn.execute("COMMIT")
+            self._fire_invalidation(identity_key)
             return new_epoch
 
     def clear_user(self, identity_key: str) -> tuple[int, int]:
@@ -330,6 +351,7 @@ class PrefStore:
                 (identity_key, 0, new_epoch, now),
             )
             self._conn.execute("COMMIT")
+            self._fire_invalidation(identity_key)
             return deleted, new_epoch
 
     def clear_bot_template(self, persona_key: str) -> int:

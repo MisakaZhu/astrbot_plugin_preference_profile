@@ -35,7 +35,7 @@ from .pref_profile.identity import (
     host_is_private_chat,
     resolve_persona_scope,
 )
-from .pref_profile.injection import PreferenceInjector
+from .pref_profile.injection import ObservableConfig, PreferenceInjector
 from .pref_profile.relation_snapshot import RelationSnapshotReader
 from .pref_profile.store import PrefStore
 
@@ -52,7 +52,7 @@ def _as_plain_config(config) -> dict:
 class PreferenceProfilePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
-        self._config = _as_plain_config(config)
+        base_config = _as_plain_config(config)
         self._astrbot_config = config if config is not None else None
         self._data_dir = StarTools.get_data_dir()
         self._store = PrefStore(self._data_dir / "preference_profile.db")
@@ -60,12 +60,21 @@ class PreferenceProfilePlugin(Star):
         self._relation_reader: Optional[RelationSnapshotReader] = None
         self._injector = PreferenceInjector(
             self._store,
-            self._config,
+            {},  # 占位：ObservableConfig 在注入器创建后包装（见下）
             lambda: self.context.persona_manager,
             self._bridge_guard,
             self._load_relation_snapshot,
             provider_settings_getter=self._provider_settings,
+            star_map=host_star_map,
+            own_module_path=f"{__package__}.main",
         )
+        # 四轮 T2a：管理开关等配置写入同步触发推式清理（等待窗口中的
+        # 在途轮次立即失效）。写操作透传底层宿主配置对象，保持
+        # save_config 语义；不污染宿主类型注册。
+        self._config = ObservableConfig(
+            base_config, on_write=self._injector.on_config_invalidation
+        )
+        self._injector._config = self._config  # noqa: SLF001
         self._commands = CommandService(
             self._store, self._config, self._resolve_identity
         )
@@ -77,7 +86,10 @@ class PreferenceProfilePlugin(Star):
         logger.info("preference_profile 已加载（默认关闭，用户需 /xp on）")
 
     async def terminate(self) -> None:
-        # epoch 已在 store 内持久化；关闭连接即可，在途请求按 epoch 失效
+        # 四轮 T2b：先主动清理全部在途轮次（运行时消息/req 块），
+        # 再关闭存储——后续清理钩子读已关闭 DB 异常时按 fail-closed
+        # 处理，双保险确保停用/卸载不复活旧内容。
+        self._injector.purge_all()
         self._store.close()
         await super().terminate()
 
