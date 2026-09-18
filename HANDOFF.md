@@ -1,10 +1,24 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.8（八轮返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.9（九轮证据收尾候选）
 
-交接日期：2026-09-18（八轮返工轮）。交付状态：**T7 总字符预算已修；
-T5b 剩余七场景受阻（宿主 Part 接口无归属信道，附转换链证据与最小宿主
-支持方案），待 Codex 复验与受阻裁定**。未宣称实机、云端或发布完成。
+交接日期：2026-09-18（九轮证据收尾轮）。交付状态：**T7 独立复核已
+通过；T5b 接口依赖受阻已接受且未修（七场景如实保留）；本轮仅测试
+证据收尾（E1/E2）与文档订正，另交宿主来源映射设计说明
+（docs/HOST_INTERFACE_PROPOSAL.md，评审稿）**。待 Codex 复验；未宣称
+实机、云端或发布完成。
 
-## 0-8. 八轮返工摘要（abdba20 → 本候选）
+## 0-9. 九轮证据收尾摘要（47bc1c9 → 本候选）
+
+| 项 | 处置 | 证据 |
+| -- | -- | -- |
+| E1 预算回归假 PASS | 修：BudgetProvider 返回父类真实 LLMResponse；run_turn 断言 DONE+role=assistant+「synthetic final reply」；X1/X2/X4 增加正常完成记录释放断言 | 修复前 evidence_quality_probe 双版各 4 用例 AgentState.ERROR/role=err；修复后双版 8/8 PASS 且探针 0 defect、终态全 assistant |
+| E2 token_repro 完整执行 | 适配版（Codex 第九轮版 shim 复用）双版完整 12 项：允许无注入记录、Provider 侧核预算、140 对照强制完整主体+标识、要求正常终态 | 双版各 12 行：T5b 七项 defect_reproduced=true（受阻如实保留）、预算两例与三对照通过（normal_terminal=true）；旧 abdba20 预算对照 140>126 复现 |
+| 文档与统计 | ACCEPTANCE 头部当前实数（16 脚本每版 264）并单列「通过/未修受阻/接口事实」；源码「不可伪造/他人不含本轮令牌」收窄；ADR 收窄「构造性不可实现」为「当前原生转换路径与既定受支持接口下缺少已验证关联」，owner_key 降级为仍需论证 | docs/ACCEPTANCE.md、pref_profile/injection.py、docs/ADR.md |
+| 宿主来源映射设计说明 | 新增 docs/HOST_INTERFACE_PROPOSAL.md（评审稿）：源对象→实际运行时对象映射的建立时点/轮次范围/晚复制不继承/异常取消停用释放/非 LLM 零干预/临时不入历史/多步与双版本边界；owner_key 全对象复制继承陷阱；离线最小验证 instance_retention_probe（实例传入被宿主保留、dict 重建为新实例、注册表不受影响，双版成立） | docs/HOST_INTERFACE_PROPOSAL.md + instance_retention_probe.json（双版） |
+
+全量：16 脚本双 venv 各 264 PASS；历史 50 场景×双版通过；token_repro
+12 项双版 7 受阻 + 5 过。T5b 七场景不通过删除/跳过改绿。
+
+## 0-8. 八轮返工摘要（abdba20 → 508b84b/47bc1c9，历史保留）
 
 第八轮复核（f77d345 → abdba20 之后的 token_repro）判两项 P2：
 
