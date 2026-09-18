@@ -340,23 +340,36 @@ async def main() -> int:
             try:
                 await asyncio.wait_for(entered.wait(), 10)
                 assert len(provider.call_log) == 0
-                matches = [
+                all_parts = [
                     p for m in runner.run_context.messages
                     if isinstance(m.content, list) for p in m.content
-                    if getattr(p, "text", None) == exact
                 ]
-                assert len(matches) == 2 and all(p._no_save for p in matches)
-                original = [p for p in req.extra_user_content_parts if p.text == exact]
-                assert len(original) == 2 and original[0] is foreign
+                # 七轮令牌：本插件块=主体+尾部轮换令牌，按前缀识别；
+                # 其他插件 temp 同文块仍按全等识别。
+                foreign_matches = [p for p in all_parts if getattr(p, "text", None) == exact]
+                own_matches = [
+                    p for p in all_parts
+                    if isinstance(getattr(p, "text", None), str)
+                    and p.text != exact and p.text.startswith(exact)
+                ]
+                assert len(foreign_matches) == 1 and len(own_matches) == 1
+                assert all(p._no_save for p in foreign_matches + own_matches)
+                original_foreign = [p for p in req.extra_user_content_parts if p.text == exact]
+                original_own = [
+                    p for p in req.extra_user_content_parts
+                    if isinstance(p.text, str) and p.text != exact and p.text.startswith(exact)
+                ]
+                assert len(original_foreign) == 1 and original_foreign[0] is foreign
                 rec = registry._records.get(id(ev))
-                assert original[1] is rec.parts[0]
-                foreign_rt, own_rt = matches
+                assert len(original_own) == 1 and original_own[0] is rec.parts[0]
+                foreign_rt, own_rt = foreign_matches[0], own_matches[0]
                 obj._store.clear_user(ident.key)
                 release.set()
                 await asyncio.wait_for(task, 10)
                 assert len(provider.call_log) == 1 and runner.done()
                 own_at_provider = any(
-                    p is own_rt and p.text == exact for p in provider.sent_parts
+                    p is own_rt and p.text and p.text.startswith(exact)
+                    for p in provider.sent_parts
                 )
                 check(
                     f"W1 同文 temp {label}：其他插件 temp 块保留、本插件块失效",
@@ -440,9 +453,15 @@ async def main() -> int:
             assert calls == ["tool"]
 
             def has_exact(call):
+                def _is_pref_text(t):
+                    # 含七轮令牌的本插件块按前缀识别；用户同文仍全等
+                    return t == exact or (
+                        isinstance(t, str) and t != exact and t.startswith(exact)
+                    )
+
                 return any(
                     isinstance(m.get("content"), list)
-                    and any(p.get("text") == exact for p in m["content"])
+                    and any(_is_pref_text(p.get("text")) for p in m["content"])
                     for m in call["contexts"]
                 )
 

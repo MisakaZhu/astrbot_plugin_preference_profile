@@ -9,23 +9,25 @@ mark_as_temp()。以 priority=20 先于 Context Bridge（默认 0）执行。
   LLMSummaryCompressor 与低优先级合法后续钩子）立即清理在途内容。
 - **停用/卸载（T2b）**：terminate 先 purge_all 再关库；校验异常一律
   fail-closed（不可信=置空）；star_map.activated 纳入失效判定。
-- **归属凭证（T5/T5a/T5b，六轮定稿）**：组装前=TurnRecord.parts
-  对象身份；组装后=**位置映射**——宿主 assemble_context 按序追加
-  每个 extra part，重建后的 user 消息 content 中
-  base = len(content) - len(extra_parts)，本插件块位于
-  content[base + 登记索引]（两版源码确定性，实测有/无 prompt 均命中）。
-  定位后仍校验全文相等 + _no_save + 数量上限三重确认；位置失配即
-  fail-safe 不清理（宁漏勿误）。公共 _no_save 与全文相等都不能证明
-  创建者（其他插件可同文同 temp，第六轮 T5b），位置是注入时刻记录
-  的每轮唯一关联；用户原文与其他插件内容（即使同文同 temp）位于
-  不同索引故保留。
-- **注册表生命周期（T6/T6a/T6b）**：TurnRegistry 以
-  WeakKeyDictionary(event) 为骨架，record 对 event/run_context 只持
-  **弱引用**——正常完成由 on_agent_done 显式释放；装饰阶段仅在记录
-  已失效或从未挂接运行时才回收（多步 Agent 的中间回复装饰不释放，
+- **归属凭证（T5/T5a/T5b，七轮定稿）**：组装前=TurnRecord.parts
+  对象身份；组装后=**每轮唯一令牌子串匹配**——注入时在文本尾部嵌入
+  不可伪造的每轮随机令牌（「〔偏好标识<random hex>〕」），运行时只
+  置空含本轮令牌且带临时标记的块；令牌跨宿主重建链
+  （model_dump_for_context → Message.model_validate）与多步 Agent
+  组装原样保留。全文相等/公共 _no_save/数量/位置都不能证明创建者
+  （其他插件可同文同 temp，位置映射在后续钩子追加/更早独立消息/
+  运行时追加下均失配，第六/七轮已证），令牌是内容级、每轮随机、
+  不可预测的唯一关联；用户原文与其他插件内容不含本轮令牌故保留。
+  令牌为模型可见文本（约 14 字符），语义无冲突；失效置空后令牌
+  一并消失。
+- **注册表生命周期（T6/T6a/T6b）**：TurnRegistry 以 dict[id(event)]
+  为骨架并为每次注册挂 event 弱引用回调，record 对 event/run_context
+  只持**弱引用**——正常完成由 on_agent_done 显式释放；装饰阶段仅在
+  记录已失效或从未挂接运行时才回收（多步 Agent 的中间回复装饰不释放，
   第六轮 T6a）；请求钩子 stop_event 中止与 asyncio 任务取消等无钩子
-  终态由弱引用自动回收（event 死亡即条目消失，第六轮 T6b）；
-  finalize 对 dead 未挂接记录显式释放。在途轮次的推式失效不受影响。
+  终态由弱引用回调自动移除条目，挂接运行时后另有宿主 task done 回调
+  兜底释放（第六轮 T6b、七轮保留）；finalize 对 dead 未挂接记录
+  显式释放。在途轮次的推式失效不受影响。
 - OnAgentBegin 返回后到首次 Provider 调用之间仍无插件钩子点（接口
   缺口，如实声明）；已真正发出的请求不可撤回。
 """
@@ -54,24 +56,27 @@ HEADER_PREFIX = HEADER[: HEADER.index("】") + 1]
 
 logger = logging.getLogger("pref_profile.injection")
 
+# 每轮唯一令牌：全角括号包裹随机 hex，作为内容级归属凭证嵌入注入
+# 文本尾部。模型可见（约 14 字符、无语义冲突）；经宿主重建链与多步
+# Agent 组装原样保留（实测）；失效置空后令牌一并消失。
+def make_token() -> str:
+    return "〔偏好标识" + secrets.token_hex(4) + "〕"
+
 
 class TurnRecord:
     """一个在途轮次的归属凭证与清理句柄（对宿主对象只持弱引用）。"""
 
-    __slots__ = ("event_ref", "identity_key", "epoch", "texts", "parts",
-                 "run_context_ref", "dead", "part_index", "extra_count",
-                 "_task_callback")
+    __slots__ = ("event_ref", "identity_key", "epoch", "tokens", "parts",
+                 "run_context_ref", "dead", "_task_callback")
 
     def __init__(self, event: Any, identity_key: str, epoch: int):
         self.event_ref = weakref.ref(event)
         self.identity_key = identity_key
         self.epoch = epoch
-        self.texts: list[str] = []        # 注入块完整文本（位置校验用）
+        self.tokens: list[str] = []       # 每轮唯一令牌（归属凭证）
         self.parts: list[TextPart] = []   # req 上追加的块对象（组装前按身份移除）
         self.run_context_ref: Optional[weakref.ref] = None
         self.dead = False
-        self.part_index: int = -1         # 注入时在 req.extra_user_content_parts 的绝对索引
-        self.extra_count: int = -1        # 注入后 extra parts 总数（位置映射基准）
         self._task_callback = None        # 宿主执行 task 的 done 回调句柄（T6b）
 
     @property
@@ -150,45 +155,37 @@ class TurnRegistry:
 
     @staticmethod
     def _blank_runtime_parts(record: "TurnRecord") -> int:
-        """按位置映射置空运行时中本插件块。
+        """按每轮唯一令牌置空运行时中本插件块。
 
-        宿主 assemble_context 按序追加每个 extra part；重建后 user 消息
-        content 的 base = len(content) - extra_count（两版源码确定性，
-        实测有/无 prompt 均命中），本插件块位于 content[base+part_index]。
-        定位后三重校验（全文相等 + _no_save + 索引界内）；失配即
-        fail-safe 跳过（宁漏勿误）。绝不触碰其他索引的块——用户原文
-        与其他插件内容（即使同文同 temp）保留。
+        归属判据=「含本轮令牌 + _no_save 临时标记」；令牌为注入时随
+        机生成并嵌入文本尾部的每轮唯一标记，跨宿主重建链与多步 Agent
+        保留。其他插件同文/同 temp 但不含本轮令牌的块一律保留
+        （T5b：位置/全文/公共标记均不能证明创建者）。
         """
 
         run_context = record.run_context
-        part_index = record.part_index
-        texts = list(record.texts)
-        extra_count = record.extra_count
-        if run_context is None or part_index < 0 or not texts:
+        tokens = list(record.tokens)
+        if run_context is None or not tokens:
             return 0
-        expected = texts[0]
+        cleaned = 0
         try:
             for message in getattr(run_context, "messages", None) or []:
                 content = getattr(message, "content", None)
                 if not isinstance(content, list):
                     continue
-                if extra_count <= 0 or len(content) < extra_count:
-                    continue
-                base = len(content) - extra_count
-                idx = base + part_index
-                if not (0 <= idx < len(content)):
-                    continue
-                part = content[idx]
-                if (
-                    getattr(part, "text", None) == expected
-                    and bool(getattr(part, "_no_save", False))
-                ):
-                    part.text = ""
-                    return 1
-            return 0
+                for part in content:
+                    txt = getattr(part, "text", None)
+                    if (
+                        isinstance(txt, str)
+                        and txt
+                        and any(tok in txt for tok in tokens)
+                        and bool(getattr(part, "_no_save", False))
+                    ):
+                        part.text = ""
+                        cleaned += 1
         except Exception:  # noqa: BLE001 - 清理失败不中断宿主
             logger.warning("preference_profile 运行时块清理失败", exc_info=True)
-            return 0
+        return cleaned
 
     def _blank_record(self, record: TurnRecord) -> None:
         """按归属凭证清理单个记录：req 对象身份移除 + 运行时位置置空。
@@ -219,7 +216,7 @@ class TurnRegistry:
     def release(self, event: Any) -> bool:
         """释放该轮次的记录（终态：完成/取消后/装饰回收）。
 
-        丢弃全部引用（parts/texts/run_context 弱引用/指纹）。
+        丢弃全部引用（parts/tokens/run_context 弱引用）。
         返回是否存在记录。
         """
 
@@ -236,9 +233,7 @@ class TurnRegistry:
             record._task_callback = None
         self._on_event_gone(record.identity_key)
         record.parts = []
-        record.texts = []
-        record.part_index = -1
-        record.extra_count = -1
+        record.tokens = []
         record.run_context_ref = None
         event.set_extra(STATE_EXTRA, None)
         return True
@@ -267,7 +262,7 @@ class TurnRegistry:
                 else:
                     record.run_context_ref = None
                     record.parts = []
-                    record.texts = []
+                    record.tokens = []
 
     def __len__(self) -> int:
         return len(self._records)
@@ -493,14 +488,14 @@ class PreferenceInjector:
         event.set_extra(_DONE_EXTRA, True)
         if text is None:
             return
-        # 宿主原生 TextPart（T5b：位置映射归属——注入时记录 extra
-        # parts 中的绝对索引与总数，运行时按 base+索引定位）。
-        part = TextPart(text=text).mark_as_temp()
+        # 宿主原生 TextPart（T1：不定义子类）。T5b：每轮唯一令牌嵌入
+        # 文本尾部；finalize 时轮换（见下），此后失效清理只认新令牌，
+        # 任何更早产生的同文副本（旧令牌）不受影响。
+        token = make_token()
+        part = TextPart(text=text + token).mark_as_temp()
         req.extra_user_content_parts.append(part)
         record = TurnRecord(event, identity.key, epoch_snapshot)
-        record.texts.append(text)
-        record.part_index = len(req.extra_user_content_parts) - 1
-        record.extra_count = len(req.extra_user_content_parts)
+        record.tokens.append(token)
         record.parts.append(part)
         self.registry.register(record)
         event.set_extra(
@@ -511,11 +506,14 @@ class PreferenceInjector:
     # -- 收尾与运行时钩子 -----------------------------------------------------
 
     def finalize(self, event: Any, req: ProviderRequest) -> None:
-        """收尾失效校验（priority=-1000，Runner 组装前）。
+        """收尾失效校验与令牌轮换（priority=-1000，Runner 组装前）。
 
-        一律按 TurnRecord 登记凭证清理——组装前按对象身份移除；
-        校验异常（fail-closed）同样按对象身份。dead 且未挂接运行时的
-        记录在此释放（reset 前失效的块已从 req 移除）。
+        七轮 T5b：注入后的请求钩子（priority 介于 20 与 -1000 之间）
+        可能复制含旧令牌的本插件全文。此处（请求钩子链末尾、对象身份
+        仍有效）把本插件块中的令牌**轮换**为随机新值并同步 record——
+        此后任何失效清理只按新令牌匹配；更早产生的同文副本（持旧令
+        牌）不会被误删，本插件真实块在 reset 后仍可被精确定位置空。
+        失效（fail-closed 同前）时按对象身份移除本插件块。
         """
 
         record = self.registry.get(event)
@@ -523,6 +521,14 @@ class PreferenceInjector:
             state = event.get_extra(STATE_EXTRA)
             if not state and record is None:
                 return
+            if record is not None and record.tokens and record.parts:
+                # 令牌轮换：按对象身份定位自己块，仅替换其中我方旧令牌
+                own_part = record.parts[0]
+                old_token = record.tokens[0]
+                new_token = make_token()
+                if old_token in own_part.text:
+                    own_part.text = own_part.text.replace(old_token, new_token, 1)
+                    record.tokens[0] = new_token
             invalid = (record is not None and record.dead) or not self._still_valid_key(
                 state.get("identity_key", "") if state else "",
                 state.get("epoch", -1) if state else -1,
@@ -556,7 +562,7 @@ class PreferenceInjector:
 
         先 attach（供后续推式清理定位运行时消息），再校验；失效
         （含推式清理已标记 dead）或校验异常（fail-closed）→
-        按指纹凭证置空并释放记录。返回清理数量。
+        按令牌凭证置空并释放记录。返回清理数量。
         """
 
         cleaned = 0

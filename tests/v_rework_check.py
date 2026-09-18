@@ -333,22 +333,34 @@ async def main() -> int:
                 await asyncio.wait_for(entered.wait(), 10)
                 before = len(provider.call_log)
                 assert before == 0
-                matches = [
+                matches_foreign = [
                     p for m in runner.run_context.messages
                     if isinstance(m.content, list) for p in m.content
                     if getattr(p, "text", None) == exact
                 ]
-                if len(matches) != 2:
-                    check(f"V2 {label} 夹具：运行时应有两块同文", False,
-                          f"matches={len(matches)}")
+                # 七轮令牌：本插件块=主体+尾部轮换令牌，按前缀识别；
+                # 用户同文原文（无令牌）仍按全等识别。
+                matches_own = [
+                    p for m in runner.run_context.messages
+                    if isinstance(m.content, list) for p in m.content
+                    if getattr(p, "text", None) != exact
+                    and isinstance(getattr(p, "text", None), str)
+                    and p.text.startswith(exact)
+                ]
+                if len(matches_foreign) != 1 or len(matches_own) != 1:
+                    check(f"V2 {label} 夹具：运行时应有一块用户同文与一块本插件块", False,
+                          f"foreign={len(matches_foreign)}, own={len(matches_own)}")
                     continue
-                runtime_foreign = next(p for p in matches if not getattr(p, "_no_save", False))
-                runtime_own = next(p for p in matches if getattr(p, "_no_save", False))
+                runtime_foreign = matches_foreign[0]
+                runtime_own = matches_own[0]
+                assert not getattr(runtime_foreign, "_no_save", False)
+                assert getattr(runtime_own, "_no_save", False)
                 obj._store.clear_user(ident.key)
                 release.set()
                 await asyncio.wait_for(task, 10)
                 own_at_provider = any(
-                    p["temp"] and p["text"] == exact for p in provider.sent_part_details
+                    p["temp"] and p["text"] != exact and p["text"].startswith(exact)
+                    for p in provider.sent_part_details
                 )
                 foreign_retained = runtime_foreign.text == exact
                 check(
