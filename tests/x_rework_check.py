@@ -213,8 +213,10 @@ async def run_turn(obj, meta, ev, req):
                 if isinstance(getattr(m, "content", None), list)
                 for p in m.content if isinstance(getattr(p, "text", None), str)
             ]
-            await super().text_chat(**kw)
-            return
+            # E1：必须返回父类真实 LLMResponse——丢弃响应会让宿主走
+            # ERROR 终态（role=err），runner.done() 仍为 True，不能当
+            # 正常完成。
+            return await super().text_chat(**kw)
 
     provider, runner = BudgetProvider(["synthetic final reply"]), ToolLoopAgentRunner()
     assert not await call_event_hook(ev, EventType_LLM(), req)
@@ -224,7 +226,13 @@ async def run_turn(obj, meta, ev, req):
                        streaming=False)
     async for _ in run_agent(runner, max_step=2, show_tool_use=False, show_tool_call_result=False):
         pass
+    # 正常完成终态：DONE、最终 role=assistant、预期合成回复。
     assert len(provider.call_log) == 1 and runner.done()
+    assert runner.final_llm_resp is not None, "无最终响应（异常/空终态）"
+    assert runner.final_llm_resp.role == "assistant", \
+        f"终态非 assistant: {runner.final_llm_resp.role}"
+    assert runner.final_llm_resp.completion_text == "synthetic final reply", \
+        f"回复内容不符: {runner.final_llm_resp.completion_text!r}"
     return provider, obj._injector.registry
 
 
@@ -252,17 +260,19 @@ async def x_budget(obj, meta, module):
         injected = [t for t in provider.sent_texts
                     if isinstance(t, str) and t.startswith(body[:8])]
         source_text = injected[0] if injected else ""
+        released = id(ev) not in registry._records
         if expect_full:
             # 完整主体 + 14 字令牌，恰好占满上限。
             ok = (len(injected) == 1 and len(source_text) == limit
-                  and source_text.startswith(body))
+                  and source_text.startswith(body) and released)
         else:
             # 总长不得超上限（旧 abdba20 在此为 主体+14 > 上限）。
             ok = (len(source_text) <= limit
-                  and all(len(t) <= limit for t in injected))
+                  and all(len(t) <= limit for t in injected) and released)
         check(f"{label}：注入与送达总长≤上限" if not expect_full
               else f"{label}：完整主体+令牌恰好占满上限", ok,
-              f"limit={limit}, injected_lens={[len(t) for t in injected]}")
+              f"limit={limit}, injected_lens={[len(t) for t in injected]}, "
+              f"released={released}")
     obj._config["max_inject_chars"] = 600
 
 
@@ -288,9 +298,11 @@ async def x_small_budget_and_normal(obj, meta, module):
     req = make_request("ordinary normal question")
     provider, registry = await run_turn(obj, meta, ev, req)
     injected = [t for t in provider.sent_texts if t.startswith("【")]
-    check("X4 正常对照：默认 600 注入成功且总长≤上限",
-          len(injected) == 1 and 0 < len(injected[0]) <= 600,
-          f"injected_lens={[len(t) for t in injected]}")
+    check("X4 正常对照：默认 600 注入成功、总长≤上限、正常完成已释放",
+          len(injected) == 1 and 0 < len(injected[0]) <= 600
+          and id(ev) not in registry._records,
+          f"injected_lens={[len(t) for t in injected]}, "
+          f"released={id(ev) not in registry._records}")
 
 
 async def x_chain_facts():

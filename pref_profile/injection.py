@@ -9,16 +9,17 @@ mark_as_temp()。以 priority=20 先于 Context Bridge（默认 0）执行。
   LLMSummaryCompressor 与低优先级合法后续钩子）立即清理在途内容。
 - **停用/卸载（T2b）**：terminate 先 purge_all 再关库；校验异常一律
   fail-closed（不可信=置空）；star_map.activated 纳入失效判定。
-- **归属凭证（T5/T5a/T5b，七轮定稿）**：组装前=TurnRecord.parts
+- **归属凭证（T5/T5a/T5b，九轮裁定后表述）**：组装前=TurnRecord.parts
   对象身份；组装后=**每轮唯一令牌子串匹配**——注入时在文本尾部嵌入
-  不可伪造的每轮随机令牌（「〔偏好标识<random hex>〕」），运行时只
+  每轮随机令牌（「〔偏好标识<random hex>〕」），运行时只
   置空含本轮令牌且带临时标记的块；令牌跨宿主重建链
   （model_dump_for_context → Message.model_validate）与多步 Agent
   组装原样保留。全文相等/公共 _no_save/数量/位置都不能证明创建者
   （其他插件可同文同 temp，位置映射在后续钩子追加/更早独立消息/
-  运行时追加下均失配，第六/七轮已证），令牌是内容级、每轮随机、
-  不可预测的唯一关联；用户原文与其他插件内容不含本轮令牌故保留。
-  令牌为模型可见文本（约 14 字符），语义无冲突；失效置空后令牌
+  运行时追加下均失配，第六/七轮已证）。**令牌不是所有权证明**：它
+  只在「finalize 轮换之前」区分同文副本；finalize 之后任何合法钩子
+  复制全文都会带走当前令牌（token_repro 七场景，第九轮受阻裁定），
+  现有原生 Part 转换路径下缺少已验证的来源关联。失效置空后令牌
   一并消失。
 - **注册表生命周期（T6/T6a/T6b）**：TurnRegistry 以 dict[id(event)]
   为骨架并为每次注册挂 event 弱引用回调，record 对 event/run_context
@@ -159,8 +160,9 @@ class TurnRegistry:
 
         归属判据=「含本轮令牌 + _no_save 临时标记」；令牌为注入时随
         机生成并嵌入文本尾部的每轮唯一标记，跨宿主重建链与多步 Agent
-        保留。其他插件同文/同 temp 但不含本轮令牌的块一律保留
-        （T5b：位置/全文/公共标记均不能证明创建者）。
+        保留。其他插件同文/同 temp 但不含本轮令牌的块保留；**注意**：
+        finalize 之后被复制的同文 temp 副本会携带当前令牌、与本插件
+        块不可区分（第九轮受阻裁定），此路径不能区分它们。
         """
 
         run_context = record.run_context
