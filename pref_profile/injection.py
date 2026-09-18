@@ -21,6 +21,22 @@ mark_as_temp()。以 priority=20 先于 Context Bridge（默认 0）执行。
 - 插件激活状态纳入 _still_valid（star_map.activated=False → 失效）；
   OnAgentBegin 返回后到首次 Provider 调用之间仍无插件钩子点（接口
   缺口，如实声明）；已真正发出的请求不可撤回。
+
+五轮返工要点（T5a/T5b/T6）：
+- **统一归属（T5a/T5b）**：全部清理入口（finalize 正常/异常、推式
+  清理、AgentBegin 终检）一律以 TurnRecord 登记凭证为准——组装前按
+  **对象身份**（record.parts）；组装后按 **全文相等 + _no_save 临时
+  标记 + 数量上限**（用户原文/其他插件普通块无 temp 标记，即使文本
+  完全相同也保留；mark_as_temp 经宿主序列化链 model_dump_for_context
+  → Message.model_validate 重建后保留在新 part 上，作为运行时身份
+  组合凭证之一）。移除一切按可见前缀批量删除的路径（含异常兜底——
+  拿不到凭证时宁可不清理也不误删）。
+- **注册表生命周期（T6）**：轮次终态释放——on_agent_done（真实
+  完成/失败/中止均触发）与 on_decorating_result（兜底，宿主对每条
+  消息执行）按 event 释放记录的全部强引用（event/req 引用/
+  run_context/texts）；finalize 对 dead 且未挂接运行时的记录同样释
+  放（reset 前失效的块已从 req 移除，不会进入运行时）。在途请求的
+  推式失效能力不受影响。
 """
 
 from __future__ import annotations
@@ -98,14 +114,30 @@ class TurnRegistry:
                     ]
             except Exception:  # noqa: BLE001
                 pass
-        # 组装后：按完整文本精确置空（至多登记数量个）
+        # 组装后：按「全文相等 + _no_save 临时标记 + 数量上限」置空
+        # （T5b：用户原文/其他插件普通块无 temp 标记，即使文本完全相同
+        # 也保留——mark_as_temp 经宿主序列化链重建后保留在新 part 上）
         rc = record.run_context
         texts = list(record.texts)
         if rc is None or not texts:
             return  # 未附加运行时引用：保留记录等待 on_agent_begin 清理
         try:
-            remaining = len(texts)
-            for message in getattr(rc, "messages", None) or []:
+            self._blank_runtime_parts(rc, texts)
+        except Exception:  # noqa: BLE001 - 清理失败不中断宿主
+            logger.warning("preference_profile 推式清理失败", exc_info=True)
+
+    @staticmethod
+    def _blank_runtime_parts(run_context: Any, texts: list[str]) -> int:
+        """在运行时消息中置空本插件块（全文+temp 标记+数量上限）。
+
+        返回置空数量。绝不触碰无 _no_save 临时标记的块——用户原文与
+        其他插件的普通块即使文本完全相同也保留。
+        """
+
+        cleaned = 0
+        remaining = len(texts)
+        try:
+            for message in getattr(run_context, "messages", None) or []:
                 content = getattr(message, "content", None)
                 if not isinstance(content, list) or remaining <= 0:
                     continue
@@ -113,11 +145,43 @@ class TurnRegistry:
                     if remaining <= 0:
                         break
                     txt = getattr(part, "text", None)
-                    if isinstance(txt, str) and txt in texts and txt:
+                    if (
+                        isinstance(txt, str)
+                        and txt
+                        and txt in texts
+                        and bool(getattr(part, "_no_save", False))
+                    ):
                         part.text = ""
                         remaining -= 1
+                        cleaned += 1
         except Exception:  # noqa: BLE001 - 清理失败不中断宿主
-            logger.warning("preference_profile 推式清理失败", exc_info=True)
+            logger.warning("preference_profile 运行时块清理失败", exc_info=True)
+        return cleaned
+
+    def release(self, event: Any) -> bool:
+        """释放该轮次的记录（终态：完成/失败/取消/装饰兜底）。
+
+        丢弃全部强引用（event/req 引用/run_context/texts/parts）。
+        返回是否存在记录。
+        """
+
+        record = self._records.pop(id(event), None)
+        if record is None:
+            return False
+        bucket = self._by_identity.get(record.identity_key)
+        if bucket is not None:
+            bucket.discard(id(event))
+            if not bucket:
+                self._by_identity.pop(record.identity_key, None)
+        # 显式清空强引用，阻断 record→event/run_context 的保留链
+        record.parts = []
+        record.texts = []
+        record.run_context = None
+        try:
+            record.event.set_extra(STATE_EXTRA, None)
+        except Exception:  # noqa: BLE001
+            pass
+        return True
 
     def purge_identity(self, identity_key: str | None) -> None:
         """失效指定身份的在途轮次；None=全部（管理员开关/停用）。"""
@@ -197,17 +261,6 @@ class ObservableConfig(dict):
             self._on_write()
         except Exception:  # noqa: BLE001
             pass
-
-
-def is_own_part(part: Any) -> bool:
-    """识别本插件追加的文本块（仅用于 finalize 的辅助判定；归属以
-    TurnRecord.parts 对象身份与 texts 全文为准）。"""
-
-    return (
-        isinstance(part, TextPart)
-        and bool(getattr(part, "text", ""))
-        and str(part.text).startswith(HEADER_PREFIX)
-    )
 
 
 class PreferenceInjector:
@@ -403,24 +456,48 @@ class PreferenceInjector:
     def finalize(self, event: Any, req: ProviderRequest) -> None:
         """收尾失效校验（priority=-1000，Runner 组装前）。
 
-        fail-closed：校验异常=不可信 → 移除本插件块（对象身份）。
+        T5a/T5b/T6：一律按 TurnRecord 登记凭证清理——组装前按对象身份
+        （record.parts）移除，绝不按前缀/文本匹配删除。校验异常
+        （fail-closed）同样按对象身份；拿不到凭证时宁可不清理也不误删。
+        dead 且未挂接运行时的记录在此释放（reset 前失效的块已从 req
+        移除，不会进入运行时）。
         """
 
+        record = self.registry._records.get(id(event))  # noqa: SLF001
         try:
             state = event.get_extra(STATE_EXTRA)
-            if not state:
+            if not state and record is None:
                 return
-            if not self._still_valid_key(state["identity_key"], state["epoch"]):
-                req.extra_user_content_parts = [
-                    p for p in req.extra_user_content_parts if not is_own_part(p)
-                ]
+            invalid = (
+                record is not None
+                and record.dead
+            ) or not self._still_valid_key(
+                state.get("identity_key", "") if state else "",
+                state.get("epoch", -1) if state else -1,
+            )
+            if invalid:
+                if record is not None:
+                    req.extra_user_content_parts = [
+                        p for p in req.extra_user_content_parts
+                        if not any(p is own for own in record.parts)
+                    ]
+                    if record.run_context is None:
+                        # 未挂接运行时：请求若继续走 Runner，运行时不会
+                        # 含本插件块（req 已移除）；记录可释放
+                        self.registry.release(event)
+                    else:
+                        record.dead = True
                 event.set_extra(STATE_EXTRA, None)
         except Exception:  # noqa: BLE001 - 校验失败按不可信处理（T2b）
             logger.warning("preference_profile 收尾校验失败，按失效处理", exc_info=True)
             try:
-                req.extra_user_content_parts = [
-                    p for p in req.extra_user_content_parts if not is_own_part(p)
-                ]
+                if record is not None:
+                    # 异常兜底同样只按登记对象身份，绝不前缀批量删除
+                    req.extra_user_content_parts = [
+                        p for p in req.extra_user_content_parts
+                        if not any(p is own for own in record.parts)
+                    ]
+                    self.registry.release(event)
                 event.set_extra(STATE_EXTRA, None)
             except Exception:  # noqa: BLE001
                 pass
@@ -430,48 +507,55 @@ class PreferenceInjector:
 
         先 attach（供后续推式清理定位运行时消息），再校验；失效
         （含推式清理已标记 dead 的记录）或校验异常（fail-closed）→
-        按全文凭证置空。返回清理数量。
+        按「全文+temp 标记+数量上限」置空并释放记录。返回清理数量。
         """
 
         cleaned = 0
         try:
             state = event.get_extra(STATE_EXTRA)
-            if not state:
+            record = self.registry._records.get(id(event))  # noqa: SLF001
+            if not state and record is None:
                 return 0
-            record_key = id(event)
             self.registry.attach_runtime(event, run_context)
-            record = self.registry._records.get(record_key)  # noqa: SLF001
-            invalid = record is not None and record.dead
-            if not invalid and self._still_valid_key(
-                state["identity_key"], state["epoch"]
-            ):
+            if record is None:
                 return 0
-            texts = list(record.texts) if record is not None else []
-            messages = getattr(run_context, "messages", None) or []
-            for message in messages:
-                content = getattr(message, "content", None)
-                if not isinstance(content, list):
-                    continue
-                for part in content:
-                    txt = getattr(part, "text", None)
-                    if isinstance(txt, str) and txt and txt in texts:
-                        part.text = ""
-                        cleaned += 1
+            invalid = record.dead or not self._still_valid_key(
+                state.get("identity_key", "") if state else "",
+                state.get("epoch", -1) if state else -1,
+            )
+            if not invalid:
+                return 0
+            cleaned = self.registry._blank_runtime_parts(  # noqa: SLF001
+                run_context, list(record.texts)
+            )
             event.set_extra(STATE_EXTRA, None)
-            if record is not None:
-                self.registry._discard(record)  # noqa: SLF001
-        except Exception:  # noqa: BLE001 - fail-closed：异常时置空全部登记块
+            self.registry.release(event)
+        except Exception:  # noqa: BLE001 - fail-closed：异常时按凭证清理
             logger.warning(
                 "preference_profile 运行时校验异常，按失效处理", exc_info=True
             )
             try:
-                record_key = id(event)
-                record = self.registry._records.get(record_key)  # noqa: SLF001
+                record = self.registry._records.get(id(event))  # noqa: SLF001
                 if record is not None:
-                    self.registry._blank_record(record)
-                    self.registry._discard(record)  # noqa: SLF001
-                    cleaned = max(cleaned, 1)
+                    if record.run_context is not None:
+                        cleaned = max(
+                            cleaned,
+                            self.registry._blank_runtime_parts(  # noqa: SLF001
+                                record.run_context, list(record.texts)
+                            ),
+                        )
+                    self.registry.release(event)
                 event.set_extra(STATE_EXTRA, None)
             except Exception:  # noqa: BLE001
                 pass
         return cleaned
+
+    def release_turn(self, event: Any) -> bool:
+        """轮次终态释放（T6）：on_agent_done / on_decorating_result 调用。
+
+        正常完成、失败与中止的轮次都到达这两个钩子之一；释放记录的
+        全部强引用。不影响仍在途请求的推式失效能力（它们尚未到达
+        终态钩子，记录保持活动）。
+        """
+
+        return self.registry.release(event)

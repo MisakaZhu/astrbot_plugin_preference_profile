@@ -186,9 +186,10 @@ async def main() -> int:
         ]
         cmd_names = {h.handler_name for h in handlers}
         check(
-            "L1c 10 命令 + 2 个 LLM 钩子 + 1 个 AgentBegin 钩子注册",
-            len(handlers) == 13
-            and {"xp_show", "xp_set", "xp_on", "xp_off", "xp_admin", "xp_clear"} <= cmd_names,
+            "L1c 10 命令 + 2 LLM + 1 AgentBegin + 2 终态释放钩子注册",
+            len(handlers) == 15
+            and {"xp_show", "xp_set", "xp_on", "xp_off", "xp_admin", "xp_clear"} <= cmd_names
+            and {"on_agent_done", "on_decorating_result_release"} <= cmd_names,
             f"n={len(handlers)}, names={sorted(cmd_names)}",
         )
         llm_hooks = [
