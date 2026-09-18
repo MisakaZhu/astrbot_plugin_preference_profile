@@ -55,12 +55,15 @@
   防线，校验异常一律 fail-closed。**OnAgentBegin 返回后到首次
   Provider 调用之间不存在插件钩子点（接口缺口）**；已真正发出的
   请求不可撤回（未把 append/reset/AgentBegin 重定义为发送）。
-- 归属凭证（六轮定稿）：组装前=TurnRecord.parts 对象身份；组装后=
-  **位置映射**（宿主 assemble_context 按序追加 extra parts，重建后
-  base=len(content)-extra_count，本插件块位于 content[base+登记索引]；
-  定位后全文+_no_save+界内三重校验，失配 fail-safe 跳过）。全文、
-  公共 _no_save、数量上限单独都不能证明创建者（第六轮 T5b：其他
-  插件可同文同 temp）；所有清理入口共用该规则，无前缀路径。
+- 归属凭证（七轮定稿）：组装前=TurnRecord.parts 对象身份；组装后=
+  **每轮唯一令牌子串匹配**——注入时在文本尾部嵌入随机令牌
+  「〔偏好标识<hex>〕」，清理只置空含本轮令牌且带 _no_save 的块；
+  finalize（-1000，请求钩子链末尾）按对象身份轮换存活块令牌并同步
+  登记，此后更早产生的同文副本（持旧令牌）失效清理时不被误删。
+  全文相等/公共 _no_save/数量/位置都不能证明创建者（第六/七轮 T5b：
+  其他插件可同文同 temp，位置映射 part_index 恒等于 extra_count-1，
+  在后续钩子追加/更早独立消息/运行时追加下均失配）；所有清理入口
+  共用该规则，无前缀路径。
 - 注册表终态（六轮后）：正常完成=on_agent_done；err 终态=执行轮次
   task 的 done 回调（attach_runtime 时注册，完成/取消均触发）；
   多步 Agent 中间装饰不释放（T6a：仅回收 dead/未挂接）；stop 中止

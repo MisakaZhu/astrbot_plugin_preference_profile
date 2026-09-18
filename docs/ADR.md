@@ -249,3 +249,29 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   task 的 add_done_callback（完成/取消/err 均触发，弱引用取回 event
   释放）——覆盖无 AgentDone/decorating 的取消与 err 终态；registry
   为 dict[id(event)]+弱引用回调，event 死亡自动清理。
+
+
+## 七轮返工修订（Codex 复核 f77d345 后，T5b 可靠归属）
+
+- **T5b 每轮唯一令牌**：六轮位置映射在九场景钩子组合下退化为
+  「每条消息最后一块」（extra parts 总是先 append，part_index 恒等于
+  extra_count-1）：后续钩子追加、更早独立消息、运行时追加均失配。
+  七轮改为内容级归属——注入时在文本尾部嵌入每轮随机令牌
+  「〔偏好标识<hex>〕」（约 14 字符、模型可见、跨宿主重建链
+  model_dump_for_context → Message.model_validate 与多步 Agent 组装
+  原样保留）；运行时清理只置空「含本轮令牌且带 _no_save 临时标记」
+  的块，同文同 temp 的他人块（不含本轮令牌）保留。
+- **finalize 令牌轮换**：注入后的合法请求钩子（priority 介于 20 与
+  -1000）可能复制含旧令牌的本插件全文。finalize（-1000，钩子链末尾、
+  Runner 组装前）按对象身份把存活块令牌轮换为新值并同步 TurnRecord
+  ——此后失效清理只按新令牌匹配，更早副本（持旧令牌）不被误删；
+  失效分支仍按对象身份移除，不依赖令牌。
+- **registry 实现**：TurnRecord 槽位 tokens 替代 part_index/extra_count；
+  registry 保持 dict[id(event)] 骨架，注册时挂 event 弱引用回调，
+  event 死亡自动移除条目（无插件侧无界保留）。
+- **探针适配等价关系**：composition/terminal/ownership/v/w 中「与
+  注入时全文全等」的本插件块识别放宽为「去尾部令牌后主体一致/以
+  主体为前缀且非全等」，归属判定（对象身份、_no_save、Provider
+  边界、foreign 保留）与场景构造不变；冻结原版探针只读保留于
+  偏好管理-独立复核-f77d345-20260918/，适配副本在
+  偏好管理-七轮复验-f77d345/。

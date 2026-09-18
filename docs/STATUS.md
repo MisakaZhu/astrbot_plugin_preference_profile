@@ -1,8 +1,18 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（六轮返工候选 0.1.6）
+最后更新：2026-09-18（七轮返工候选 0.1.7）
 
-## 当前状态：六轮返工完成（T5b 位置映射/T6a 装饰条件回收/T6b task-done），新候选待 Codex 独立复验（A0）
+## 当前状态：七轮返工完成（T5b 每轮唯一令牌+finalize 轮换），新候选待 Codex 独立复验（A0）
+
+七轮返工（edc5a75 → 3aacc15）：Codex 复核 f77d345 确认六轮位置映射
+在九场景钩子组合下退化为「每条消息最后一块」（part_index 恒等于
+extra_count-1）。修复：组装后归属改为每轮唯一令牌（〔偏好标识<hex>〕
+嵌入文本尾部），清理按本轮令牌子串+_no_save 匹配；finalize（-1000，
+请求钩子链末尾）按对象身份轮换存活块令牌，更早同文副本（持旧令牌）
+不被误删。验证：composition 九场景×双版本全绿，适配探针在 a2378c6
+重现 6 缺陷与 Codex 冻结报告一致；terminal 8/ownership 4/lifecycle 17
+×双版本全绿；全量 15 脚本双 venv 全绿（v/w 夹具按「去令牌主体一致」
+等价关系适配，冻结原版探针只读保留）。
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.7（2026-09-18 七轮返工候选）
+
+修复 Codex 七轮复核（f77d345）确认的 T5b 可靠归属：
+
+- T5b：组装后归属改为每轮唯一令牌（「〔偏好标识<hex>〕」嵌入文本
+  尾部），运行时清理只按本轮令牌子串+_no_save 匹配；弃用位置映射
+  （part_index 恒等于 extra_count-1，九场景 6 缺陷复现）。
+- finalize 令牌轮换：请求钩子链末尾（-1000）按对象身份轮换存活块
+  令牌，更早产生的同文副本（持旧令牌）失效清理时不被误删。
+- registry：TurnRecord tokens 槽位替代 part_index/extra_count；
+  dict[id(event)]+event 弱引用回调自动移除死条目。
+- 验证：composition 九场景×双版本全绿（适配探针在旧候选 a2378c6
+  重现 6 缺陷，与 Codex 冻结报告一致）；terminal 8/ownership 4/
+  lifecycle 17 场景×双版本全绿；全量 15 脚本双 venv 全绿（v/w 夹具
+  按等价关系「去令牌主体一致」适配）。
+
 ## 0.1.6（2026-09-18 六轮返工候选）
 
 修复 Codex 六轮复核（a2378c6）确认的 T5b/T6a/T6b：
