@@ -1,8 +1,8 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（四轮返工候选 0.1.4）
+最后更新：2026-09-18（五轮返工候选 0.1.5）
 
-## 当前状态：四轮返工完成（T2a/T2b/T5 推式失效），新候选待 Codex 独立复验（A0）
+## 当前状态：五轮返工完成（T5a/T5b/T6 归属与生命周期），新候选待 Codex 独立复验（A0）
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
@@ -80,3 +80,11 @@
   fail-closed、activated 纳入校验、全文+对象身份精确归属。
 - u_rework_check 9 断言双 venv 9/9（旧 2/9）；lifecycle_repro 新副本
   双版本 17 场景全绿；全量 13 脚本双 venv 各 237 PASS。
+
+## 五轮返工（a06a5e4 → ba571a9+）
+
+- Codex 五轮确认推式失效有效、四轮 17 场景保持；判 T5a（finalize
+  前缀残留）、T5b（全文相等非归属）、T6（完成轮次不释放）。
+- 修复：对象身份/「全文+temp 标记+数量」双凭证、终态释放钩子。
+- v_rework_check 10 断言双 venv 10/10（旧 2/10）；ownership 双版本
+  四反例 0 复现；lifecycle 17 场景保持全绿；全量 14 脚本各 247 PASS。

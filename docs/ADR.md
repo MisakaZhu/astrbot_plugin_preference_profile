@@ -217,3 +217,19 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 - **T5 精确归属**：注入块以完整文本+对象身份登记为凭证；运行时清理
   只置空与全文完全相等且不超过登记数量的块；组装前按对象身份移除。
   禁止按可见前缀/通用类型批量清理。
+
+
+## 五轮返工修订（Codex 复核 a06a5e4 后，T5a/T5b/T6）
+
+- **T5a 统一归属**：移除 is_own_part 前缀函数；finalize 正常/异常
+  分支一律按 TurnRecord.parts 对象身份移除，拿不到凭证时宁可不清理
+  也不误删（异常兜底不再"按前缀清所有"）。
+- **T5b 运行时身份凭证**：组装后清理统一为「登记全文 + _no_save
+  临时标记 + 数量上限」——mark_as_temp 经宿主 model_dump_for_context
+  → Message.model_validate 重建后保留在新 part 上；用户原文与其他
+  插件普通块即使文本完全相同也保留。单一实现 _blank_runtime_parts
+  为推式清理 / AgentBegin 终检 / 异常兜底三入口共用。
+- **T6 注册表终态**：on_agent_done（真实完成/失败/中止均触发）与
+  on_decorating_result（兜底）按 event 释放全部强引用；finalize 对
+  dead 且未挂接运行时的记录同样释放；release 显式清空引用链。
+  在途轮次的推式失效能力不受影响。

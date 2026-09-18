@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5（2026-09-18 五轮返工候选）
+
+修复 Codex 五轮复核（a06a5e4）确认的 T5a/T5b/T6：
+
+- T5a：finalize 正常/异常分支改按登记对象身份移除；删除前缀函数，
+  全部清理入口统一归属规则。
+- T5b：运行时清理统一「全文+_no_save 临时标记+数量上限」；同文
+  用户输入与其他插件普通块保留，本插件 temp 块精确失效。
+- T6：on_agent_done / on_decorating_result 终态释放注册表强引用；
+  完成/失败轮次不再无限保留；在途推式失效不受影响。
+- 新增 tests/v_rework_check.py（真实加载，10 断言双 venv 10/10，
+  旧候选 2/10）；ownership_repro 双版本四反例 0 复现；lifecycle 17
+  场景保持全绿；全量 14 脚本双 venv 各 247 PASS。
+
 ## 0.1.4（2026-09-18 四轮返工候选）
 
 修复 Codex 四轮复核（c77dd0d）确认的 T2a/T2b/T5：

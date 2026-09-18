@@ -1,15 +1,15 @@
-# ACCEPTANCE — 验收矩阵映射（三轮返工后 0.1.3）
+# ACCEPTANCE — 验收矩阵映射（五轮返工后 0.1.5）
 
 - 运行环境：共享 venv（AstrBot 4.28.0 / 4.26.0，Python 3.12.10），脱网、
   合成数据、本地假模型；uctx 组合固定为 d8a7147 + patches/0001 隔离副本，
   Relation Arc 固定 913ca59（均未混入两仓库后续提交）。
 - 复现命令（cwd=仓库根；p3_import_check 需 cwd=父目录，见文件头说明）：
   `<venv>/Scripts/python.exe tests/<脚本>.py`
-- 证据对应提交：四轮返工最终提交见 git log -1（修改代码后本表须重跑）。
-- 统计口径：当前 13 脚本每版 237 PASS
-  （12+33+28+25+4+21+23+19+25+10+12+16+9）。旧口径订正：0.1.1 候选
+- 证据对应提交：五轮返工最终提交见 git log -1（修改代码后本表须重跑）。
+- 统计口径：当前 14 脚本每版 247 PASS
+  （12+33+28+25+4+21+23+19+25+10+12+16+9+10）。旧口径订正：0.1.1 候选
   9 脚本每版 190（非 194——p3_import 的 4 项曾按两版本重复计数）；
-  0.1.2 为 11 脚本 211；0.1.3 为 12 脚本 228。
+  0.1.2 为 11 脚本 211；0.1.3 为 12 脚本 228；0.1.4 为 13 脚本 237。
 
 | 编号 | 行为 | 证据（脚本·断言） | 4.28.0 | 4.26.0 |
 | --- | --- | --- | --- | --- |
@@ -20,17 +20,17 @@
 | V05 | 状态/方向独立；非法输入被拒 | p1·E1/E2a-E2i；p2·D05-D12；r_rework·RR6b（九方向组合唯一） | PASS | PASS |
 | V06 | 冲突/禁止/强度/关系暂停优先 | t_rework·T3a-T3f（真实配置管理器+存储：合法 pause/timed/恢复）；r3·Q4 系（真实生效 scope）；p2·D06-D12/R01-R04 | PASS | PASS |
 | V07 | 持久化/事务/revision 冲突 | p1·E4/E5a-E5e/E6 | PASS | PASS |
-| V08 | 关闭/删除失效（含未发送窗口） | u_rework·U2 压缩等待窗口三动作（真实 ContextManager/LLMSummaryCompressor 等待中 clear/admin_off/off → 推式清理，首调零泄漏）/U3（-2000 后续钩子）/U5（真实 turn_off_plugin 关 DB fail-closed）；t_rework·T2；r3·Q6/Q7；r_rework·RR5；p1·E6；p3·C05/C06/C13-C16；p4·H5 | PASS | PASS |
+| V08 | 关闭/删除失效（含未发送窗口） | v_rework·V5（在途与完成并存：前者可失效）/V6（真实停用）/V8（挂接前 dead）；u_rework·U2 压缩等待三动作/U3（-2000）/U5；t_rework·T2；r3·Q6/Q7；r_rework·RR5；p1·E6；p3·C05/C06/C13-C16；p4·H5 | PASS | PASS |
 | V09 | 真实宿主命令；群聊仅引导；管理不进模型 | p7·L2（真实 PluginManager.load 加载后 CommandFilter 参数匹配 + call_handler 完整分发）；r_rework·RR1；p6·G1-G3 | PASS | PASS |
 | V10 | 真实请求可见偏好；无关不强套；无额外调用 | p4·H7a/H7b（真实 Runner 一次调用含偏好块）、H8（无数据零干预） | PASS | PASS |
-| V11 | 注入去重/上限/不覆盖他人提示；精确归属不误删 | u_rework·U1（同标题不同尾文的用户引用/其他插件引用保留、偏好块按全文凭证精确消失）；t_rework·T1a-T1d；p4·H2c/H3；p2·B01/B09 | PASS | PASS |
+| V11 | 注入去重/上限/不覆盖他人提示；精确归属不误删 | v_rework·V1（finalize 正常分支同标题保留）/V2 early+late（同文用户原文保留、本插件 temp 块失效，Provider 边界判定）；u_rework·U1；t_rework·T1a-T1d；p4·H2c/H3；p2·B01/B09 | PASS | PASS |
 | V12 | 临时块不入持久化；回复/轨迹隔离 | p0·F5（真实 _save_to_history 跳过）；p4·H2b/H7c；p5·B1/B3（uctx 账本级隔离） | PASS | PASS |
 | V13 | Relation Arc 各形态（含损坏状态降级）+ 原语义回归 | t_rework·T3b-T3e/T3g（非法 JSON/非 dict/非法枚举/类型错 → 降级）；r3·Q4-Q5b（真实 scope/user_version/缺 config）；r_rework·RR3；p5·RA（合成库对齐真实 config+user_version）；只读证明 | PASS | PASS |
 | V14 | 偏好私聊不入共享库；群聊读不到 | r_rework·RR2a-RR2d（正式构造+真实 star_map）；p5·B1-B6 | PASS | PASS |
 | V15 | 钩子顺序/重试/流式/失败/取消 | p7·L1d（20/-1000 双钩子）/L4（真实 stop_event 传播停止）；r3·Q7；r_rework·RR2（停用路径）；p4·H3、p5·B5（重试）；p6·S1/S2/S3（流式/失败/恢复） | PASS | PASS |
 | V16 | 缺协议先禁用并解释 | r_rework·RR2e/RR2f；p4·H6c/H6d；p5·B6 | PASS | PASS |
-| V17 | 重载/重启/停用/卸载后恢复（含在途清理） | u_rework·U4（activated=False 失效）/U5（真实 turn_off_plugin：terminate 先 purge_all 再关 DB，清理异常 fail-closed）；t_rework·T1f；p7·L3/L5；p6·G4；p1·E4 | PASS | PASS |
-| V18 | 双版本真实包集成与干净装/卸 | p7·L1（真实 PluginManager.load 完整加载：metadata/config/实例化/13 handler 注册=10 命令+2 LLM 钩子+1 AgentBegin 钩子）；u_rework（真实加载下的完整生命周期）；p6·G5/G6a；p3_import_check | PASS | PASS |
+| V17 | 重载/重启/停用/卸载后恢复（含在途清理与记录释放） | v_rework·V3（完成轮次注册表归零）/V4（失败 decorating 兜底释放）/V6（真实停用）；u_rework·U4/U5；t_rework·T1f；p7·L3/L5；p6·G4；p1·E4 | PASS | PASS |
+| V18 | 双版本真实包集成与干净装/卸 | p7·L1（真实 PluginManager.load 完整加载：metadata/config/实例化/15 handler 注册=10 命令+2 LLM+1 AgentBegin+2 终态释放钩子）；u/v_rework（真实加载下的完整生命周期）；p6·G5/G6a；p3_import_check | PASS | PASS |
 | V19 | 交付物无真实数据泄漏 | 最终提交时 git ls-files 全量核对；ZIP 解包清单核对无 db/log/凭据/venv/宿主源码/.git；长数字均为代码常量/合成值 | PASS（打包时） | PASS（打包时） |
 | V20 | SHA/补丁/证据一致性；文档可审阅 | ZIP/补丁 SHA-256 以包外 SHA256SUMS.txt 为准；包内容与最终提交一致；t_rework·T4a（ACCEPTANCE 无重复插入、尺寸正常）；全量回归在最终提交复跑 | PASS（打包时） | PASS（打包时） |
 
@@ -55,6 +55,13 @@
   防线，校验异常一律 fail-closed。**OnAgentBegin 返回后到首次
   Provider 调用之间不存在插件钩子点（接口缺口）**；已真正发出的
   请求不可撤回（未把 append/reset/AgentBegin 重定义为发送）。
+- 归属凭证（五轮后统一）：组装前=TurnRecord.parts 对象身份；组装后=
+  「登记全文 + _no_save 临时标记 + 数量上限」（mark_as_temp 经宿主
+  序列化链重建后保留，与全文组合构成运行时身份）；全部清理入口
+  （finalize 正常/异常、推式、AgentBegin、异常兜底）共用该规则，
+  无任何按可见前缀批量删除的路径。注册表终态：on_agent_done 与
+  on_decorating_result 兜底释放全部强引用；在途轮次的推式失效不受
+  影响（v_rework·V3-V6）。
 - p7·L4 证明的是事件传播停止（stop_event 后续钩子不执行），不等同于
   对在途 Agent 协程的 asyncio 取消；p7·L5 证明 terminate 后新轮次
   零注入，不等于在途请求或全局状态的恢复验证。

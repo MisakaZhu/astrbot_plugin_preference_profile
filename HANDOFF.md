@@ -1,10 +1,20 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.4（四轮返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.5（五轮返工候选）
 
-交接日期：2026-09-18（四轮返工轮）。交付状态：**T2a/T2b/T5 已修复
-（推式失效 + fail-closed + 精确归属），本地门槛满足的新候选，待
-Codex 独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
+交接日期：2026-09-18（五轮返工轮）。交付状态：**T5a/T5b/T6 已修复
+（统一归属凭证 + 注册表终态释放），本地门槛满足的新候选，待 Codex
+独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
 
-## 0. 四轮返工摘要（c77dd0d → 本候选）
+## 0. 五轮返工摘要（a06a5e4 → 本候选）
+
+Codex 五轮确认推式失效有效（四轮 17 场景保持全绿）；判 T5a/T5b/T6：
+
+| 项 | 根因 | 修复 | 证据 |
+| -- | -- | -- | -- |
+| T5a | finalize 正常/异常分支仍调 is_own_part 前缀匹配，推式清理后误删同标题其他插件块 | 两分支全改 TurnRecord.parts 对象身份；删除 is_own_part；拿不到凭证宁可不清理 | ownership T5_finalize 双版本 0 复现；v_rework V1 |
+| T5b | 全文相等+数量上限仍非归属：early 清掉同文用户原文；late 数量耗尽在用户原文、真 temp 块漏发 | 运行时身份=「登记全文 + _no_save 临时标记 + 数量上限」（宿主序列化链重建后 temp 标记保留）；单一实现三入口共用 | ownership early/late_exact 双版本 0 复现（Provider 边界 _no_save 块判定）；v_rework V2 early+late |
+| T6 | 完成轮次记录不释放：5 轮 DONE 后注册表 1..5、弱引用全存活 | on_agent_done + on_decorating_result 终态释放全部强引用；finalize 释放 dead 未挂接记录 | ownership retention 0 复现；v_rework V3/V4（失败 decorating 兜底） |
+
+## 0b. 四轮返工摘要（c77dd0d → a06a5e4，历史保留）
 
 Codex 四轮确认 T1/T3/T4 关闭、接受旧 T2 夹具说明；判 T2a/T2b/T5：
 
