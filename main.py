@@ -256,23 +256,25 @@ class PreferenceProfilePlugin(Star):
 
     @filter.on_agent_done()
     async def on_agent_done(self, event: AstrMessageEvent, run_context, llm_response=None):
-        """轮次终态释放（T6）：真实完成/失败/中止均触发。
+        """轮次终态释放（T6）：真实 Agent 完成终态（DONE）触发。
 
-        释放在途记录的全部强引用（event/req/run_context/texts）；
-        不影响仍在途请求的推式失效能力（它们尚未到达终态）。
+        释放该轮记录；不影响仍在途请求的推式失效能力。err 终态与
+        asyncio 取消等无 AgentDone 路径由注册表弱引用自动回收（T6b）。
         """
 
         self._injector.release_turn(event)
 
     @filter.on_decorating_result()
     async def on_decorating_result_release(self, event: AstrMessageEvent):
-        """装饰阶段兜底释放（T6）：宿主对每条到达回复阶段的轮次执行。
+        """装饰阶段回收（T6a 修订）：仅回收已失效或从未挂接运行时的记录。
 
-        覆盖未经过 on_agent_done 的失败/异常路径；此时本轮内容即将
-        发送完毕，推式失效使命已结束。
+        多步 Agent 的中间回复（工具调用伴随文字）也会到达装饰阶段且
+        runner 尚未 done——此时记录必须保留，否则失效窗口丢失；正常
+        完成已由 on_agent_done 先行释放，此处不重复处理活记录。
+        stop_event 中止与取消后的死记录在此回收。
         """
 
-        self._injector.release_turn(event)
+        self._injector.release_finished_or_dead(event)
 
     # -- 命令组（/xp 主名，/偏好 中文别名） ---------------------------------
 

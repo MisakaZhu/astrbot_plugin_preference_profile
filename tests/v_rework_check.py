@@ -400,7 +400,13 @@ async def main() -> int:
         req = make_request()
         provider = InspectProvider(["x"], error_script=[RuntimeError("model down")])
         runner = ToolLoopAgentRunner()
-        await run_full(ev, req, provider, runner)
+        # 宿主中每个请求轮次由独立 asyncio task 执行；task 完成（含
+        # err 终态）触发我们注册的 done 回调释放（T6b）
+        task = asyncio.create_task(run_full(ev, req, provider, runner))
+        try:
+            await task
+        except Exception:
+            pass  # 与宿主一致：异常被外层捕获并发送错误消息
         final = runner.get_final_llm_resp()
         failed = final is not None and getattr(final, "role", "") == "err"
         check(
@@ -408,10 +414,11 @@ async def main() -> int:
             failed,
             f"role={getattr(final, 'role', None)}",
         )
+        await asyncio.sleep(0)  # done 回调经 call_soon 调度，需一次迭代
         await call_event_hook(ev, EventType.OnDecoratingResultEvent)  # 真实分发
         gc.collect()
         check(
-            "V4 失败轮次 decorating 兜底后记录释放",
+            "V4 失败轮次 task-done 回调 + decorating 兜底后记录释放",
             len(registry._records) == 0,
             f"records={len(registry._records)}",
         )
