@@ -484,14 +484,17 @@ class PreferenceInjector:
             ),
             max_items=max_items,
         )
-        text = render_decision(decision, max_chars=max_chars)
+        token = make_token()
+        # T7：max_inject_chars 是单轮注入总字符上限，最终表示中的全部
+        # 模型可见字符（含归属标识）都计入预算；预算不足按既有规则丢
+        # 尾部条目，连头部都放不下则不注入（prompt_builder 语义）。
+        text = render_decision(decision, max_chars=max_chars - len(token))
         event.set_extra(_DONE_EXTRA, True)
         if text is None:
             return
         # 宿主原生 TextPart（T1：不定义子类）。T5b：每轮唯一令牌嵌入
         # 文本尾部；finalize 时轮换（见下），此后失效清理只认新令牌，
         # 任何更早产生的同文副本（旧令牌）不受影响。
-        token = make_token()
         part = TextPart(text=text + token).mark_as_temp()
         req.extra_user_content_parts.append(part)
         record = TurnRecord(event, identity.key, epoch_snapshot)
@@ -509,8 +512,9 @@ class PreferenceInjector:
         """收尾失效校验与令牌轮换（priority=-1000，Runner 组装前）。
 
         七轮 T5b：注入后的请求钩子（priority 介于 20 与 -1000 之间）
-        可能复制含旧令牌的本插件全文。此处（请求钩子链末尾、对象身份
-        仍有效）把本插件块中的令牌**轮换**为随机新值并同步 record——
+        可能复制含旧令牌的本插件全文。此处（-1000 晚于常见合法注入
+        钩子、对象身份仍有效；注意 -1000 只是相对排序，不保证全链
+        最后，晚于本钩子的复制见受阻记录）把本插件块中的令牌**轮换**为随机新值并同步 record——
         此后任何失效清理只按新令牌匹配；更早产生的同文副本（持旧令
         牌）不会被误删，本插件真实块在 reset 后仍可被精确定位置空。
         失效（fail-closed 同前）时按对象身份移除本插件块。

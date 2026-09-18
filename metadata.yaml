@@ -1,5 +1,5 @@
 name: astrbot_plugin_preference_profile
 desc: 角色偏好与互动边界（XP 管理）：私聊双方手动偏好档案、禁忌/方向/强度/节奏、本人权限与关闭删除、关系只读联动、偏好私聊跨会话隔离
-version: 0.1.7
+version: 0.1.8
 author: Ewnscat-ya
 repo: ""

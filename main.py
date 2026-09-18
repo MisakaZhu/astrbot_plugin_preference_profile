@@ -232,10 +232,11 @@ class PreferenceProfilePlugin(Star):
 
     @filter.on_llm_request(priority=-1000)
     async def finalize_request(self, event: AstrMessageEvent, req: ProviderRequest):
-        """钩子链末尾（Runner 组装前）的最终失效校验（R5/T2）。
+        """组装前（Runner reset 之前）的收尾失效校验（R5/T2）。
 
+        -1000 只是相对排序（晚于常见合法注入钩子，不保证全链最后）。
         对本插件已追加但宿主尚未组装的临时块校验 admin/enabled/epoch，
-        失效则按前缀移除（仅本插件块，其他插件内容不动）。
+        失效则按登记对象身份移除（仅本插件块，其他插件内容不动）。
         """
 
         self._injector.finalize(event, req)
@@ -244,12 +245,14 @@ class PreferenceProfilePlugin(Star):
     async def on_agent_begin(self, event: AstrMessageEvent, run_context):
         """真实 Agent 钩子（T2）：Runner reset 完成后、首次 Provider 调用前。
 
-        priority=-1000：在本轮其他 OnAgentBegin 钩子（含受控等待）之后、
-        链末尾执行——等待期间发生的失效在恢复后仍会被本校验捕获。
-        对 run_context.messages 中已固化的本插件块做最终失效校验，
-        失效时按「全文+temp 标记+数量上限」置空（普通输入与其他插件
-        块不受影响）。此后到首次 Provider 调用之间无插件可介入的宿主
-        钩子点（接口缺口，如实声明）；已真正发出的请求不可撤回。
+        priority=-1000：晚于多数 OnAgentBegin 钩子（含受控等待），但
+        只是相对排序、不保证全链最后——等待期间发生的失效在恢复后
+        仍会被本校验捕获。对 run_context.messages 中已固化的本插件块
+        做最终失效校验，失效时按「本轮令牌子串+temp 标记」置空（普通
+        输入与其他插件块不受影响；finalize 之后才复制的同文 temp 副本
+        与本尊不可区分，见受阻记录）。此后到首次 Provider 调用之间无
+        插件可介入的宿主钩子点（接口缺口，如实声明）；已真正发出的
+        请求不可撤回。
         """
 
         self._injector.invalidate_runtime_messages(event, run_context)
