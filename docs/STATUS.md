@@ -1,8 +1,8 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（五轮返工候选 0.1.5）
+最后更新：2026-09-18（六轮返工候选 0.1.6）
 
-## 当前状态：五轮返工完成（T5a/T5b/T6 归属与生命周期），新候选待 Codex 独立复验（A0）
+## 当前状态：六轮返工完成（T5b 位置映射/T6a 装饰条件回收/T6b task-done），新候选待 Codex 独立复验（A0）
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
@@ -88,3 +88,11 @@
 - 修复：对象身份/「全文+temp 标记+数量」双凭证、终态释放钩子。
 - v_rework_check 10 断言双 venv 10/10（旧 2/10）；ownership 双版本
   四反例 0 复现；lifecycle 17 场景保持全绿；全量 14 脚本各 247 PASS。
+
+## 六轮返工（a2378c6 → edc5a75+）
+
+- Codex 六轮判 T5b（同文 temp 误删）、T6a（装饰过早释放回归）、
+  T6b（stop 中止/取消不释放）。
+- 修复：位置映射归属、装饰条件回收、task-done 回调+弱引用回收。
+- w_rework 9 断言双 venv 9/9（旧 6/9）；terminal_repro 双版 8 场景
+  全绿；lifecycle 17×2、ownership 4×2 保持；全量 15 脚本各 256 PASS。

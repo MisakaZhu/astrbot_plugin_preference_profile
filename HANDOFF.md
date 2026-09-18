@@ -1,10 +1,20 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.5（五轮返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.6（六轮返工候选）
 
-交接日期：2026-09-18（五轮返工轮）。交付状态：**T5a/T5b/T6 已修复
-（统一归属凭证 + 注册表终态释放），本地门槛满足的新候选，待 Codex
-独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
+交接日期：2026-09-18（六轮返工轮）。交付状态：**T5b/T6a/T6b 已修复
+（位置映射归属 + 装饰条件回收 + task-done 释放），本地门槛满足的新
+候选，待 Codex 独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
 
-## 0. 五轮返工摘要（a06a5e4 → 本候选）
+## 0. 六轮返工摘要（a2378c6 → 本候选）
+
+Codex 六轮判 T5b/T6a/T6b：
+
+| 项 | 根因 | 修复 | 证据 |
+| -- | -- | -- | -- |
+| T5b | 全文+_no_save+数量仍非归属：其他插件原生 mark_as_temp 同文块被误删、本插件真块漏清 | 位置映射：assemble_context 按序追加 extra parts，重建后 base=len(content)-extra_count，块位于 content[base+登记索引]；全文+_no_save+界内三重校验，失配 fail-safe | terminal T5b_early/late 双版 0 复现（对象身份+Provider 边界）；w_rework W1 |
+| T6a | on_decorating_result 无条件 release：多步 Agent 中间文字装饰时 runner 未 done 即释放，后续失效无目标 | 装饰仅回收 dead/未挂接记录 | terminal T6a 双版 0 复现（真实工具+装饰+第二次调用）；w_rework W2 |
+| T6b | stop 中止与 asyncio 取消无 AgentDone/decorating，记录滞留 | attach_runtime 注册执行轮次 task 的 done 回调（完成/取消/err 均触发）+ event 弱引用自动回收 | terminal T6b 双版 0 复现；w_rework W3/W4 |
+
+## 0b. 五轮返工摘要（a06a5e4 → a2378c6，历史保留）
 
 Codex 五轮确认推式失效有效（四轮 17 场景保持全绿）；判 T5a/T5b/T6：
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.6（2026-09-18 六轮返工候选）
+
+修复 Codex 六轮复核（a2378c6）确认的 T5b/T6a/T6b：
+
+- T5b：组装后归属改为位置映射（assemble_context 顺序索引+全文+
+  _no_save 三重校验）；同文同 temp 的其他插件块不再被误删。
+- T6a：装饰阶段仅回收已失效/未挂接记录，多步 Agent 中间回复后
+  仍可失效，第二次模型调用无旧偏好。
+- T6b：执行轮次 task 的 done 回调释放（取消/err 终态）+ event 弱
+  引用自动回收（stop 中止）。
+- 新增 tests/w_rework_check.py（真实工具/装饰/取消/同文 temp，
+  9 断言双 venv 9/9，旧候选 6/9）；terminal_repro 双版 8 场景全绿；
+  全量 15 脚本双 venv 各 256 PASS。
+
 ## 0.1.5（2026-09-18 五轮返工候选）
 
 修复 Codex 五轮复核（a06a5e4）确认的 T5a/T5b/T6：

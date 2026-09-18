@@ -233,3 +233,19 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   on_decorating_result（兜底）按 event 释放全部强引用；finalize 对
   dead 且未挂接运行时的记录同样释放；release 显式清空引用链。
   在途轮次的推式失效能力不受影响。
+
+
+## 六轮返工修订（Codex 复核 a2378c6 后，T5b/T6a/T6b）
+
+- **T5b 位置映射归属**：组装后归属改为位置映射——宿主
+  assemble_context 按序追加每个 extra part，重建后 user content 的
+  base=len(content)-extra_count，本插件块位于 content[base+登记索引]；
+  定位后全文+_no_save+界内三重校验，失配 fail-safe 跳过。全文+公共
+  _no_save+数量上限不再是归属判定（其他插件可同文同 temp）。
+- **T6a 装饰条件回收**：on_decorating_result 仅回收 dead 或未挂接
+  运行时的记录；多步 Agent 的中间回复（工具调用伴随文字，runner 未
+  done）不释放，第二次模型调用仍可被失效。
+- **T6b task-done 回调**：attach_runtime 时注册执行本轮宿主 asyncio
+  task 的 add_done_callback（完成/取消/err 均触发，弱引用取回 event
+  释放）——覆盖无 AgentDone/decorating 的取消与 err 终态；registry
+  为 dict[id(event)]+弱引用回调，event 死亡自动清理。
