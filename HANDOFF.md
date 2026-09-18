@@ -1,10 +1,20 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.3（三轮返工候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.4（四轮返工候选）
 
-交接日期：2026-09-18（三轮返工轮）。交付状态：**T1–T4 已修复，本地
-门槛满足的新候选，待 Codex 独立复验（A0/MIS-154）**。未宣称实机、
-云端或发布完成。
+交接日期：2026-09-18（四轮返工轮）。交付状态：**T2a/T2b/T5 已修复
+（推式失效 + fail-closed + 精确归属），本地门槛满足的新候选，待
+Codex 独立复验（A0/MIS-154）**。未宣称实机、云端或发布完成。
 
-## 0. 三轮返工摘要（8de2365 → 本候选）
+## 0. 四轮返工摘要（c77dd0d → 本候选）
+
+Codex 四轮确认 T1/T3/T4 关闭、接受旧 T2 夹具说明；判 T2a/T2b/T5：
+
+| 项 | 根因 | 修复 | 证据 |
+| -- | -- | -- | -- |
+| T2a | -1000 钩子非链末尾保证：AgentBegin 后仍有压缩 await 与 -2000 合法钩子等待，期间失效后首调泄漏 | 推式失效：PrefStore 写入回调 + ObservableConfig 写回调 → TurnRegistry 在等待窗口立即按全文凭证置空运行时消息 | lifecycle_repro 新副本双版本 17 场景全绿（compression_clear/admin_off/off、late_begin_hook_clear 0 复现）；u_rework U2/U3 |
+| T2b | 真实 turn_off_plugin 后 terminate 关 DB，清理钩子读关闭连接异常被吞，原块继续发送 | terminate 先 purge_all 再关库；校验异常 fail-closed；_still_valid 纳入 star_map.activated | u_rework U4（disable）/U5（真实 turn_off_plugin） |
+| T5 | is_own_part 按可见前缀匹配，误删同标题不同尾文的用户引用与其他插件块 | 注入时登记完整文本+对象身份凭证；运行时只置空全文完全相等且不超登记数量的块；组装前按对象身份移除 | lifecycle prefix_collision 0 复现；u_rework U1 |
+
+## 0b. 三轮返工摘要（8de2365 → c77dd0d，历史保留）
 
 Codex 三轮确认前两轮 13 个反例已修，判 T1–T4：
 

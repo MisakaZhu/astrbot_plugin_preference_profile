@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.4（2026-09-18 四轮返工候选）
+
+修复 Codex 四轮复核（c77dd0d）确认的 T2a/T2b/T5：
+
+- T2a：推式失效——存储写入回调 + ObservableConfig 配置写回调在
+  内置压缩等待窗口与低优先级后续钩子等待中立即清理在途内容，
+  不再依赖下一个钩子检查点。
+- T2b：terminate 先清理再关库；校验异常 fail-closed；插件激活状态
+  纳入失效判定（真实 turn_off_plugin 场景关闭）。
+- T5：注入块以完整文本+对象身份为归属凭证，同标题不同尾文的
+  用户引用与其他插件内容不再被误删。
+- 新增 tests/u_rework_check.py（真实 PluginManager.load 完整生命周期，
+  9 断言双 venv 9/9，旧候选 2/9）；lifecycle_repro 独立副本双版本
+  17 场景全绿；全量 13 脚本双 venv 各 237 PASS。
+
 ## 0.1.3（2026-09-18 三轮返工候选）
 
 修复 Codex 三轮复核（8de2365）确认的 T1–T4：

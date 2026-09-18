@@ -1,8 +1,8 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（三轮返工候选 0.1.3）
+最后更新：2026-09-18（四轮返工候选 0.1.4）
 
-## 当前状态：三轮返工完成（T1–T4），新候选待 Codex 独立复验（A0）
+## 当前状态：四轮返工完成（T2a/T2b/T5 推式失效），新候选待 Codex 独立复验（A0）
 
 返工轮（0c32cee → 新提交）：Codex 复核 FAIL 后修复六项缺陷，
 详见 HANDOFF 返工章节与 tests/r_rework_check.py。
@@ -70,3 +70,13 @@
 - t_rework_check 16 断言双 venv 16/16（旧提交 1/16）；serialization_repro
   新副本 T1/T3/T4 双版本 0 复现，T2 探针替身差异经宿主源码证据说明。
 - 全量 12 脚本双 venv 各 228 PASS 0 FAIL。
+
+## 四轮返工（c77dd0d → 9ab9b2c+）
+
+- Codex 四轮确认 T1/T3/T4 关闭、接受旧 T2 夹具说明；判 T2a（压缩/
+  late-hook 等待窗口）、T2b（真实 turn_off_plugin 后 DB 关闭异常被吞）、
+  T5（前缀匹配误删同标题内容）。
+- 修复：推式失效（store/ObservableConfig 回调 + TurnRegistry）、
+  fail-closed、activated 纳入校验、全文+对象身份精确归属。
+- u_rework_check 9 断言双 venv 9/9（旧 2/9）；lifecycle_repro 新副本
+  双版本 17 场景全绿；全量 13 脚本双 venv 各 237 PASS。

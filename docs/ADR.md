@@ -202,3 +202,18 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   is_global_relation 非布尔 → 快照一律降级不可用。
 - **T4**：验收文档单一事实来源；ACCEPTANCE 从干净基线重建并附
   t_rework·T4a 防重复断言。
+
+
+## 四轮返工修订（Codex 复核 c77dd0d 后，T2a/T2b/T5）
+
+- **T2a 推式失效**：钩子优先级只是相对排序，不是"链末尾"保证（宿主
+  AgentBegin 后仍有 ContextManager/LLMSummaryCompressor 真实 await 窗口
+  与更低优先级合法后续钩子）。失效改为由动作本身触发：PrefStore 的
+  clear/off 写入与 ObservableConfig（dict 子类，写透传宿主配置对象并
+  触发回调）同步驱动 TurnRegistry 在等待窗口中立即置空运行时消息。
+- **T2b 停用/卸载**：terminate 先 purge_all（关 DB 前）；清理钩子读
+  已关闭 DB 异常按 fail-closed（校验失败=不可信=置空）；_still_valid
+  纳入 star_map.activated。
+- **T5 精确归属**：注入块以完整文本+对象身份登记为凭证；运行时清理
+  只置空与全文完全相等且不超过登记数量的块；组装前按对象身份移除。
+  禁止按可见前缀/通用类型批量清理。
