@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.12（2026-09-19 十三轮收尾候选）
+
+处理 Codex 第十二轮确认的三个收尾项（M1/M2/M3 通过保持，不重做归属设计）：
+
+- N1（重建入口保护来源）：rebuild_and_test.py v3——work 输出必须尚不存在
+  且与全部来源无重叠（等于来源/祖先/位于来源内部/普通已有目录均拒绝），
+  拒绝路径零删除、canary 保持；先完整校验全部输入后创建输出。
+- N2（固定版本并校验交付）：机器可读清单 combo_manifest.json——宿主
+  原始/补丁/应用后逐文件哈希、插件提交与树哈希、协作固定提交
+  （relation 913ca59 / uctx d8a7147+0001 应用后）与补丁哈希；重建一律
+  git archive 固定提交导出；探针输出逐字段解析（JSON 行/identity 7 字段/
+  E1 数组 4 场景/m_rework PASS 4）；summary.json 记录退出码/场景数/
+  缺陷数/导入路径/组合逐文件哈希。gate 负例 8/8 拒绝。
+- N3（映射寿命管理）：宿主补丁 v3 映射条目改 `(源对象, weakref.ref(运行时
+  实例))`（不延长最终实例寿命）+ `_extra_runtime_channel` 能力标记；插件
+  callable 探测兼容解引用、identity 分支按源归属过滤置空、`release()`/
+  `_blank_record` 终态清空请求映射；「-1000 必在所有合法钩子之前」表述
+  收窄。新增 tests/n3_lifetime_check.py：DONE/ERROR/取消/停用/默认关闭
+  终态后 registry=0、映射=0、弱引用死亡。
+- 验证：双版单一入口全清单 11 项 ALL_OK 0 缺陷（boundary8/token12/
+  corrected6/remaining6/composition9/terminal8/ownership4/lifecycle17/
+  identity4/evidence4/m_rework4）；原生宿主 16 脚本 264 保持；原生
+  token_repro 7 缺陷复现→新组合 0（旧组合失败/新组合通过对照）；原生
+  m_rework PASS 2/FAIL 2（M1/M3 受阻如实）。
+- 安装包不含宿主补丁；单独安装插件在原生宿主仍受限（identity 通道
+  不可用，回退令牌行为与 0.1.9 一致），宿主补丁按 combo_manifest.json
+  清单另行应用。
+
 ## 0.1.11（2026-09-19 十一轮定向修复候选）
 
 修复 Codex 第十一轮复核 M1/M2/M3（宿主来源映射原型 v2）：

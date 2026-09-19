@@ -1,12 +1,30 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.11（十一轮定向修复候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.12（十三轮收尾候选）
 
-交接日期：2026-09-19（十一轮定向修复轮）。交付状态：**宿主来源映射原型
-v2 已修复 M1（通道锁定）/M2（快照语义映射）/M3（组装等待中停用补偿），
-隔离副本双版八场景+全部回归通过；待 Codex 复验；A0 未通过**。未宣称实机、
-云端或部署完成。宿主补丁 diff/应用后文件/哈希清单/单一入口重建脚本见
-偏好管理-宿主来源映射原型-20260919/。
+交接日期：2026-09-19（十三轮收尾轮）。交付状态：**Codex 第十二轮确认
+M1/M2/M3 通过、七 T5b 消失后，N1（重建入口保护）/N2（清单哈希门）/
+N3（映射寿命管理）收尾完成，双版单一入口全清单 11 项 ALL_OK；
+待 Codex 复验；A0 未通过**。未宣称实机、云端或部署完成。宿主补丁
+diff/机器可读哈希清单/单一入口重建脚本见偏好管理-宿主来源映射原型-20260919/。
 
-## 0-11. 十一轮定向修复摘要（6d73bb5 → 22aac1a + 文档）
+## 0-13. 十三轮收尾摘要（9517bd4 版本提交 → 0.1.12 文档定稿）
+
+| 项 | 修复 | 旧组合真实行为失败对照 | 新组合（v3+0.1.12）双版 |
+| -- | -- | -- | -- |
+| N1 重建入口保护来源 | rebuild_and_test.py v3：work 输出必须尚不存在且与全部来源无重叠（等于来源/是来源祖先/位于来源内部/普通已有目录均拒绝），拒绝路径零删除；先完整校验全部输入后才创建输出 | v2 入口对 work 路径 rmtree（rebuild_and_test.py:56-70）：误传来源目录会清空来源 | gate 负例 8/8 拒绝；已存在目录 canary 前后保持 |
+| N2 固定版本并校验交付 | 机器可读清单 combo_manifest.json（宿主原始/补丁/应用后逐文件哈希、插件提交与树哈希、协作固定提交 relation 913ca59 / uctx d8a7147+0001 应用后与补丁哈希）；重建一律 git archive 固定提交导出；探针输出逐字段解析；summary.json 记录退出码/场景数/缺陷数/导入路径/组合逐文件哈希 | v2 入口（rebuild_and_test.py:31-46/73-102）不校验哈希、协作基线依赖当前检出（实测漂移至 21eef11） | 双版重建含哈希门全过；错哈希/错 tag/缺失协作提交负例全拒绝 |
+| N3 映射寿命管理 | 宿主补丁 v3：映射条目改 `(源对象, weakref.ref(运行时实例))`（runtime 侧弱引用不延长寿命）+ `_extra_runtime_channel` 能力标记；插件 callable 探测兼容解引用、identity 分支按源归属过滤置空、`release()`/`_blank_record` 终态清空请求映射；「-1000 必在所有合法钩子之前」表述收窄 | mapping_handoff 探针：DONE/ERROR 终态后 2 个运行时实例仍被映射强引用存活（移除映射后归零）；取消路径存在宿主任务引用不归因映射 | n3_lifetime_check 五场景终态后 registry=0、映射条目=0、弱引用死亡；mapping_handoff 三终态对照归零 |
+
+验证（双版单一入口 `rebuild_and_test.py` ALL_OK，11 项 0 缺陷）：
+boundary(8)/token(12)/corrected(6)/remaining(6)/composition(9)/terminal(8)/
+ownership(4)/lifecycle(17)/identity_map(4)/evidence(4)/m_rework(4)。
+**原生宿主对照（如实单列）**：原生+0.1.12 下 16 脚本 264 PASS 保持；
+token_repro 12 场景 **7 缺陷复现**（clear/admin_off 组，旧组合失败）→
+补丁宿主新组合 0 缺陷（新组合通过）；m_rework PASS 2/FAIL 2（M1/M3
+受阻如实）；prototype_boundary 4 缺陷（原生失败集合与补丁宿主不同）。
+复现：`python rebuild_and_test.py --venv <venv> --plugin <repo> --work
+<不存在的新目录> --tag <428|426>`；负例门加 `--gates`。
+
+## 0-11. 十一轮定向修复摘要（6d73bb5 → 22aac1a + 文档，历史保留）
 
 | 项 | 修复 | 旧组合（6d73bb5+v1 补丁）真实行为失败对照 | 新组合（v2+0.1.11）双版 |
 | -- | -- | -- | -- |

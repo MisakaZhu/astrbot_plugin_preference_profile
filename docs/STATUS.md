@@ -1,24 +1,34 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-19（十一轮定向修复候选 0.1.11）
+最后更新：2026-09-19（十三轮收尾候选 0.1.12）
 
-## 当前状态：T5b 宿主来源映射原型 v2 已修复 M1/M2/M3（隔离副本双版八场景+全部回归通过），待 Codex 复验；A0 未通过
+## 当前状态：N1/N2/N3 收尾完成（重建入口保护 + 清单哈希门 + 映射寿命管理），双版单一入口全清单 ALL_OK，待 Codex 复验；A0 未通过
 
-十一轮（6d73bb5 → 22aac1a + 文档，0.1.11）：Codex 判 M1/M2/M3 三项 P2。
-- **M1 通道锁定**：归属通道在 on_agent_begin（-1000）一次性判定——请求上映射（`_extra_runtime_pairs`）含本插件源对象即锁 identity 通道；此后他人移除/置空原块也**不回退令牌匹配**（修复"identity_hits 为空即回退令牌误删他人 140 字副本"）。
-- **M2 快照语义**：宿主补丁 v2 恢复 extras 序列化→重建的原生语义（不再共享源实例，默认关闭时其他插件源对象修改不影响本轮输入）；改为 model_validate 后在请求私有内存属性上建立 源对象→最终运行时实例 映射（不进序列化/Provider 参数/历史）。
-- **M3 组装等待中停用**：`_blank_record` 对源对象置空并标记 `_source_invalidated`；宿主映射绑定处检查标记补偿置空最终实例——失效先发生、实例后建立的交接补全，不依赖 DB/handler 分发（原生宿主该分支仍受阻，如实保留）。
-- **验证**：隔离副本双版 prototype_boundary 八场景 0 defect（旧组合真实行为失败对照：remove_own/blank_own+clear 误删、媒体等待改源文本被发送、停用后旧偏好送达）；token_repro 12 双版 0 defect；历史 50 双版 0 复现；identity_map 探针双版 ALL_PASS；m_rework 4/4 双版通过；原生宿主 16 脚本双版 264 PASS 保持、token_repro 7 受阻与 m_rework M1/M3 受阻如实保留（原生 4 边界 defect 同前）。
-- **交付物**：`偏好管理-宿主来源映射原型-20260919/`——host_patch_v2_{428,426}.diff、patched_host_{428,426}/（应用后文件）、host_patch_v2_hashes.txt（原始/补丁/应用后 SHA-256）、rebuild_and_test.py（单一入口重建+全清单，双版 ALL_OK）、prototype_report.md。插件包 0.1.11（46 文件）见 dist/SHA256SUMS.txt；安装包不含宿主补丁，单独安装插件在原生宿主仍有既有受阻限制。A0 仍待 Codex 复验与宿主侧接入决策。
+十三轮（9517bd4 版本提交 → 0.1.12 文档定稿）：Codex 第十二轮确认 M1/M2/M3 通过、七 T5b 消失后，仅处理三个收尾项。
+
+- **N1 重建入口保护来源与已有目录**（`rebuild_and_test.py` v3）：work 输出约束为「尚不存在、与任一来源（venv/插件仓库/协作仓库/冻结探针与复核目录）无重叠」的新目录——等于来源、是来源祖先、位于来源内部、普通已有目录一律拒绝，拒绝路径零删除；先完整校验全部输入（宿主原始/补丁/清单哈希/插件提交/协作固定提交可达）后才创建输出；已存在目录内的 canary 在拒绝前后保持不变。
+- **N2 重建固定版本并校验交付**：机器可读清单 `combo_manifest.json`（schema combo-manifest/1）记录宿主原始/补丁/应用后逐文件哈希、插件提交与 git 树哈希、协作固定提交（relation 913ca59 / uctx d8a7147+0001 应用后树哈希）与补丁哈希；重建一律从固定 git 提交 `git archive` 导出（不依赖当前检出）；探针输出逐字段解析（token/boundary 等 JSON 行校验 `defect_reproduced` 字段、identity 探针按自身 7 字段逐场景、E1 按数组 4 场景校验 final_role/final_text、m_rework 校验 PASS 4/FAIL 0）；结果记录退出码/场景数/缺陷数/终态/导入路径/组合逐文件哈希（summary.json）。
+- **N3 来源映射寿命管理**：宿主补丁 v3——`_bind_extra_runtime_pairs` 的映射条目改为 `(源对象, weakref.ref(运行时实例))`（runtime 侧弱引用不延长最终实例寿命，src 侧强引用与请求同寿命），并设 `_extra_runtime_channel = "identity"` 能力标记；插件侧 `_lock_channel`/m_rework 对条目做 callable 探测兼容解引用，identity 分支按源归属过滤置空运行时实例（不误删他人条目）；`_blank_record` 经请求映射同时置空运行时实例并锁定 identity 通道；`release()` 终态清空 `req._extra_runtime_pairs` 条目；清理「-1000 必在所有合法钩子之前」过宽表述为「相对排序较早、不保证先于所有合法钩子」。新增 `tests/n3_lifetime_check.py` 寿命对照（DONE/真实 ERROR/真实 Task 取消/正式停用/默认关闭五场景）：终态后 registry=0、映射条目=0、运行时实例弱引用死亡；调用方保留 request 引用的场景归因明确。
+- **验证（双版单一入口全清单 ALL_OK，11 项 0 缺陷）**：boundary(8)、token(12)、corrected(6)、remaining(6)、composition(9)、terminal(8)、ownership(4)、lifecycle(17)、identity_map(4)、evidence(4)、m_rework(4)。gate 负例 8/8 拒绝（work==plugin/venv/内部/祖先/已存在、错宿主哈希、错 tag、缺失协作提交），已存在目录 canary 保持。旧组合真实行为失败对照：原生宿主+0.1.12 下 token_repro 12 场景 **7 缺陷复现**（clear/admin_off 组）→ 新组合 0 缺陷；原生 m_rework PASS 2/FAIL 2（M1/M3 受阻如实）；原生宿主 16 脚本 264 PASS 保持。
+- **交付物（v3）**：`偏好管理-宿主来源映射原型-20260919/`——host_patch_v3_{428,426}.diff、patched_host_{428,426}/、combo_manifest.json（机器可读哈希清单）、rebuild_and_test.py（N1 保护 + N2 哈希门的单一重建入口，双版 ALL_OK）、rebuild_and_test_v2_frozen.py（v2 冻结入口留档）。插件包 0.1.12 见 dist/SHA256SUMS.txt；**安装包不含宿主补丁**——单独安装插件在原生宿主仍受限（identity 通道不可用，回退令牌行为保持 0.1.9 一致），宿主补丁须按 N2 清单另行应用。A0 仍待 Codex 复验与宿主侧接入决策，Goal 结束不等于 A0 通过。
 
 ### 历史轮次摘要
+
+十二轮（b22ae0b 时点复验）：Codex 确认 M1/M2/M3 通过、七 T5b 消失，
+判定收尾 N1（重建入口任意 rmtree）/ N2（哈希不校验+协作漂移）/
+N3（映射强引用不释放）；冻结材料 `偏好管理-独立复核-b22ae0b-20260919/`。
+
+十一轮（6d73bb5 → 22aac1a + 文档，0.1.11）：Codex 判 M1/M2/M3 三项 P2 后
+定向修复——M1 通道锁定（on_agent_begin 一次性判定归属通道，锁定后不回退
+令牌）、M2 快照语义（宿主补丁 v2 恢复 extras 序列化→重建原生语义，
+model_validate 后建源→运行时实例映射）、M3 组装等待中停用
+（`_source_invalidated` 标记 + 映射绑定处补偿置空）；隔离副本双版 boundary
+八场景 0 defect、token12/历史50 双版 0、m_rework 4/4、原生 264 保持。
 
 十轮（8a8bdbf → dabaa61/6d73bb5，0.1.10）：宿主来源映射原型 v1（七误删
 双版 0 复现首次达成）+ 边界三缺陷交付。九轮（47bc1c9 → 154e8da/8a8bdbf，
 0.1.9）：证据收尾通过、T7 复核通过、T5b 接口受阻已接受。历史 composition
 适配探针基线：a2378c6 每版 1 缺陷、f77d345 每版 6、abdba20 起 0。
-
-### 历史轮次摘要
 
 八轮返工（abdba20 → 508b84b/47bc1c9，0.1.8）：T7 预算计入标识 +
 x_rework 新回归；T5b 剩余分支交受阻证据。七轮（edc5a75 →

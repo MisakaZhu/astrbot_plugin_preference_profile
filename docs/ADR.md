@@ -335,3 +335,34 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   `Message` 构造点；多步 Agent 第二次调用复用同一 run_context（T6a
   场景已覆盖），宿主若在轮次内重建消息需更新配对；配对的弱引用生命
   周期与异常路径仍需宿主侧正式评审；未修改已安装宿主，不构成部署。
+
+## 十一轮至十三轮收尾修订（M1/M2/M3 与 N1/N2/N3，2026-09-19）
+
+- **M1 通道锁定（v2 补丁，0.1.11）**：归属通道在 on_agent_begin（-1000）
+  一次性判定——请求映射含本插件源对象即锁 identity 通道，此后不回退
+  令牌匹配（修复他人同文副本被令牌回退误删）。
+- **M2 快照语义（v2 补丁）**：extras 恢复序列化→重建原生语义；改为
+  `Message.model_validate` 后在请求私有内存属性建立 源对象→最终运行时
+  实例 映射（不进序列化/Provider 参数/历史），源对象后续修改不影响
+  本轮输入。
+- **M3 失效交接（v2/v3 补丁）**：`_blank_record` 源对象置空 +
+  `_source_invalidated` 标记；映射绑定处补偿置空最终实例（组装等待中
+  clear/正式停用均生效）；v3 下同时经请求映射置空运行时实例并锁定
+  identity 通道（弱引用表示下仅源置空无效）。
+- **N3 映射寿命管理（v3 补丁，0.1.12）**：映射条目改
+  `(源对象, weakref.ref(运行时实例))`——runtime 侧弱引用不延长最终实例
+  寿命（宿主自身释放规则不变），src 侧强引用与请求持有的 extra parts
+  同寿命；设 `_extra_runtime_channel="identity"` 能力标记。插件终态
+  `release()` 清空请求映射条目，`_blank_record` 按源归属过滤置空运行时
+  实例；`n3_lifetime_check.py` 五场景（DONE/真实 ERROR/真实 Task 取消/
+  正式停用/默认关闭）终态后 registry=0、映射条目=0、弱引用死亡。
+  取消路径存在宿主任务自身引用（不归因映射），探针如实区分。
+- **N1/N2 重建入口（交付脚本，非运行时）**：v2 入口对 work 任意 rmtree、
+  哈希不校验、协作基线依赖当前检出——v3 入口 work 须尚不存在且与来源
+  无重叠（拒绝零删除、canary 保持）、先校验后创建、一律 git archive
+  固定提交（relation 913ca59 / uctx d8a7147+0001）导出并以
+  combo_manifest.json 逐文件哈希门校验，探针输出逐字段解析。
+- **验证**：双版单一入口全清单 11 项 ALL_OK 0 缺陷；gate 负例 8/8
+  拒绝；原生宿主 16 脚本 264 保持、token_repro 7 缺陷复现与
+  m_rework M1/M3 受阻如实单列（旧组合失败/新组合通过对照）。
+  A0 未通过，待 Codex 复验与宿主侧接入决策。
