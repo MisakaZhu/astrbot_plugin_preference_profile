@@ -68,16 +68,24 @@ class TurnRecord:
     """一个在途轮次的归属凭证与清理句柄（对宿主对象只持弱引用）。"""
 
     __slots__ = ("event_ref", "identity_key", "epoch", "tokens", "parts",
-                 "run_context_ref", "dead", "_task_callback")
+                 "run_context_ref", "dead", "channel", "runtime_pairs",
+                 "_task_callback")
 
     def __init__(self, event: Any, identity_key: str, epoch: int):
         self.event_ref = weakref.ref(event)
         self.identity_key = identity_key
         self.epoch = epoch
-        self.tokens: list[str] = []       # 每轮唯一令牌（归属凭证）
+        self.tokens: list[str] = []       # 每轮唯一令牌（原生宿主归属凭证）
         self.parts: list[TextPart] = []   # req 上追加的块对象（组装前按身份移除）
         self.run_context_ref: Optional[weakref.ref] = None
         self.dead = False
+        # 归属通道（第十一轮 M1）：on_agent_begin 时一次性锁定——
+        # "identity"=宿主来源映射已建立（请求上存在含本插件源对象的
+        # 源→运行时映射），失效只按映射进行，**绝不回退令牌**（原块
+        # 被他人移除/置空也不回退）；"token"=原生宿主，令牌子串匹配。
+        self.channel: str = "token"
+        # 映射通道登记的 (源对象, 运行时实例) 对（仅含本插件源对象）。
+        self.runtime_pairs: list = []
         self._task_callback = None        # 宿主执行 task 的 done 回调句柄（T6b）
 
     @property
@@ -156,13 +164,14 @@ class TurnRegistry:
 
     @staticmethod
     def _blank_runtime_parts(record: "TurnRecord") -> int:
-        """按每轮唯一令牌置空运行时中本插件块。
+        """按锁定归属通道置空运行时中本插件块（第十一轮 M1/M2）。
 
-        归属判据=「含本轮令牌 + _no_save 临时标记」；令牌为注入时随
-        机生成并嵌入文本尾部的每轮唯一标记，跨宿主重建链与多步 Agent
-        保留。其他插件同文/同 temp 但不含本轮令牌的块保留；**注意**：
-        finalize 之后被复制的同文 temp 副本会携带当前令牌、与本插件
-        块不可区分（第九轮受阻裁定），此路径不能区分它们。
+        - identity 通道（宿主来源映射已在 on_agent_begin 锁定）：只清
+          映射登记的本插件运行时实例。原块被他人移除/置空表示「无自身
+          目标可清」，**不回退令牌**——finalize 后被复制的同文副本携带
+          当前令牌，令牌匹配会误删它们。
+        - token 通道（原生宿主）：令牌子串匹配，行为与 0.1.9 一致
+          （该宿主组合的接口受阻状态如实保留）。
         """
 
         run_context = record.run_context
@@ -171,6 +180,12 @@ class TurnRegistry:
             return 0
         cleaned = 0
         try:
+            if record.channel == "identity":
+                for _src, rt in record.runtime_pairs:
+                    if isinstance(getattr(rt, "text", None), str) and rt.text:
+                        rt.text = ""
+                        cleaned += 1
+                return cleaned
             text_parts = []
             for message in getattr(run_context, "messages", None) or []:
                 content = getattr(message, "content", None)
@@ -184,16 +199,7 @@ class TurnRegistry:
                         and bool(getattr(part, "_no_save", False))
                     ):
                         text_parts.append(part)
-            # 宿主直通（T5b 宿主来源映射原型）：任一运行时块与源对象
-            # 同一，即说明宿主组装建立了源→运行时同一性，身份判据可靠
-            # ——此时停用令牌回退：finalize 后被复制的同文副本携带当前
-            # 令牌，令牌路径会误删它们。未打补丁的原生宿主：身份不
-            # 命中，回退令牌子串匹配（行为与 0.1.9 完全一致）。
-            identity_hits = [
-                p for p in text_parts
-                if any(p is own for own in record.parts)
-            ]
-            targets = identity_hits if identity_hits else [
+            targets = [
                 p for p in text_parts
                 if any(tok in p.text for tok in tokens)
             ]
@@ -203,6 +209,29 @@ class TurnRegistry:
         except Exception:  # noqa: BLE001 - 清理失败不中断宿主
             logger.warning("preference_profile 运行时块清理失败", exc_info=True)
         return cleaned
+
+    def _lock_channel(self, record: TurnRecord, state: Any) -> None:
+        """锁定本轮归属通道（on_agent_begin，合法后续钩子之前）。
+
+        宿主来源映射补丁在组装后把 源对象→运行时实例 映射写到请求
+        （`_extra_runtime_pairs`，dataclass 私有内存属性，不序列化）。
+        映射中含本插件源对象即认定本轮经映射通道失效；一经锁定，
+        后续原块被他人移除/置空也不回退令牌内容匹配（M1）。映射随
+        请求对象在轮次结束时释放，与本轮 messages 同寿命；原生宿主
+        无该属性 → 保持令牌通道。
+        """
+
+        if record.channel == "identity":
+            return
+        state_req = state.get("req") if isinstance(state, dict) else None
+        pairs = getattr(state_req, "_extra_runtime_pairs", None) or []
+        locked = [
+            (src, rt) for src, rt in pairs
+            if any(src is p for p in record.parts)
+        ]
+        if locked:
+            record.channel = "identity"
+            record.runtime_pairs[:] = locked
 
     def _blank_record(self, record: TurnRecord) -> None:
         """按归属凭证清理单个记录：req 对象身份移除 + 运行时位置置空。
@@ -225,9 +254,22 @@ class TurnRegistry:
                     ]
             except Exception:  # noqa: BLE001
                 pass
+        # 组装前/组装中失效的交接（M3）：置空源对象并打失效标记——
+        # 宿主来源映射补丁在最终运行时实例建立后检查该标记并补偿
+        # 置空，不依赖本插件后续钩子（正式停用后 AgentBegin 等钩子
+        # 被宿主过滤）、不依赖已关闭数据库。原生宿主无该声明，标记
+        # 写入失败被吞掉、行为与 0.1.9 一致（原生组合的该分支受阻
+        # 状态如实保留）。
+        for part in parts:
+            if isinstance(getattr(part, "text", None), str) and part.text:
+                part.text = ""
+            try:
+                part._source_invalidated = True
+            except Exception:  # noqa: BLE001 - 原生宿主无私有属性声明
+                pass
         rc = record.run_context
         if rc is None:
-            return  # 未附加运行时引用：保留记录等待 on_agent_begin 清理
+            return  # 未附加运行时引用：保留记录等待补偿/后续清理
         self._blank_runtime_parts(record)
 
     def release(self, event: Any) -> bool:
@@ -579,11 +621,12 @@ class PreferenceInjector:
                 pass
 
     def invalidate_runtime_messages(self, event: Any, run_context: Any) -> int:
-        """on_agent_begin 钩子（-1000）：登记运行时引用并做终检。
+        """on_agent_begin 钩子（-1000）：登记运行时引用、锁定归属通道并终检。
 
-        先 attach（供后续推式清理定位运行时消息），再校验；失效
-        （含推式清理已标记 dead）或校验异常（fail-closed）→
-        按令牌凭证置空并释放记录。返回清理数量。
+        先 attach（供后续推式清理定位运行时消息），再锁定归属通道
+        （在合法后续钩子可能移除/复制内容之前一次性判定，M1），然后
+        校验；失效（含推式清理已标记 dead）或校验异常（fail-closed）→
+        按锁定通道置空并释放记录。返回清理数量。
         """
 
         cleaned = 0
@@ -595,6 +638,7 @@ class PreferenceInjector:
             self.registry.attach_runtime(event, run_context)
             if record is None:
                 return 0
+            self.registry._lock_channel(record, state)  # noqa: SLF001
             invalid = record.dead or not self._still_valid_key(
                 state.get("identity_key", "") if state else "",
                 state.get("epoch", -1) if state else -1,
