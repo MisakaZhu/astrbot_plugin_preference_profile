@@ -171,6 +171,7 @@ class TurnRegistry:
             return 0
         cleaned = 0
         try:
+            text_parts = []
             for message in getattr(run_context, "messages", None) or []:
                 content = getattr(message, "content", None)
                 if not isinstance(content, list):
@@ -180,11 +181,25 @@ class TurnRegistry:
                     if (
                         isinstance(txt, str)
                         and txt
-                        and any(tok in txt for tok in tokens)
                         and bool(getattr(part, "_no_save", False))
                     ):
-                        part.text = ""
-                        cleaned += 1
+                        text_parts.append(part)
+            # 宿主直通（T5b 宿主来源映射原型）：任一运行时块与源对象
+            # 同一，即说明宿主组装建立了源→运行时同一性，身份判据可靠
+            # ——此时停用令牌回退：finalize 后被复制的同文副本携带当前
+            # 令牌，令牌路径会误删它们。未打补丁的原生宿主：身份不
+            # 命中，回退令牌子串匹配（行为与 0.1.9 完全一致）。
+            identity_hits = [
+                p for p in text_parts
+                if any(p is own for own in record.parts)
+            ]
+            targets = identity_hits if identity_hits else [
+                p for p in text_parts
+                if any(tok in p.text for tok in tokens)
+            ]
+            for part in targets:
+                part.text = ""
+                cleaned += 1
         except Exception:  # noqa: BLE001 - 清理失败不中断宿主
             logger.warning("preference_profile 运行时块清理失败", exc_info=True)
         return cleaned
