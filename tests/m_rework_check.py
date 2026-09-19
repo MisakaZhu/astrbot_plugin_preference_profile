@@ -240,8 +240,18 @@ async def m1_channel_lock(obj, meta, module):
     async def gap(event, rc):
         rec = obj._injector.registry.get(event)
         source = rec.parts[0]
-        pairs = getattr(req, "_extra_runtime_pairs", None) or []
-        own = next((rt for src, rt in pairs if src is source), None)
+        raw = getattr(req, "_extra_runtime_pairs", None) or []
+        # 兼容两种条目表示：v3 为 (src, weakref(rt))；旧组合为强引用对
+        resolved = []
+        for entry in raw:
+            src, rt = entry
+            if callable(src):
+                src = src()
+            if callable(rt):
+                rt = rt()
+            if src is not None and rt is not None:
+                resolved.append((src, rt))
+        own = next((rt for src, rt in resolved if src is source), None)
         if own is None:  # 原生宿主等价定位（本脚本只在补丁宿主断言）
             own = next((p for p in parts(rc) if p.text == source.text), None)
         foreign = TextPart(text=own.text).mark_as_temp()
@@ -254,7 +264,7 @@ async def m1_channel_lock(obj, meta, module):
         # 旧候选（6d73bb5）无 channel 字段：按 token 通道语义观测，
         # 失败必须来自真实行为（误删/快照改变/偏好送达），不能以
         # AttributeError 崩溃充当失败对照。
-        seen.update(channel=getattr(rec, "channel", "token"), pairs=len(pairs))
+        seen.update(channel=getattr(rec, "channel", "token"), pairs=len(resolved))
         entered.set()
         await release.wait()
         rec2 = obj._injector.registry.get(event)

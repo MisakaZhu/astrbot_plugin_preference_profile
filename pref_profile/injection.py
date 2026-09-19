@@ -181,10 +181,18 @@ class TurnRegistry:
         cleaned = 0
         try:
             if record.channel == "identity":
-                for _src, rt in record.runtime_pairs:
-                    if isinstance(getattr(rt, "text", None), str) and rt.text:
-                        rt.text = ""
-                        cleaned += 1
+                # 仅清映射中属于本插件源对象的运行时实例；他人条目
+                # （含同文副本）一律保留。
+                for entry in record.runtime_pairs:
+                    src_ref, rt_ref = entry
+                    src = src_ref() if callable(src_ref) else src_ref
+                    rt = rt_ref() if callable(rt_ref) else rt_ref
+                    if src is None or rt is None:
+                        continue
+                    if any(src is p for p in record.parts):
+                        if isinstance(getattr(rt, "text", None), str) and rt.text:
+                            rt.text = ""
+                            cleaned += 1
                 return cleaned
             text_parts = []
             for message in getattr(run_context, "messages", None) or []:
@@ -211,25 +219,36 @@ class TurnRegistry:
         return cleaned
 
     def _lock_channel(self, record: TurnRecord, state: Any) -> None:
-        """锁定本轮归属通道（on_agent_begin，合法后续钩子之前）。
+        """锁定本轮归属通道（on_agent_begin，相对排序较早的一次性判定）。
 
-        宿主来源映射补丁在组装后把 源对象→运行时实例 映射写到请求
-        （`_extra_runtime_pairs`，dataclass 私有内存属性，不序列化）。
-        映射中含本插件源对象即认定本轮经映射通道失效；一经锁定，
-        后续原块被他人移除/置空也不回退令牌内容匹配（M1）。映射随
-        请求对象在轮次结束时释放，与本轮 messages 同寿命；原生宿主
-        无该属性 → 保持令牌通道。
+        宿主来源映射补丁在组装后把 源对象→运行时实例(弱引用) 映射写到
+        请求（`_extra_runtime_pairs` 条目，runtime 侧弱引用）并设
+        `_extra_runtime_channel` 能力标记。判定规则：标记为 identity
+        （宿主具备来源映射能力且本轮已绑定）即锁定 identity 通道——
+        一经锁定，后续原块被他人移除/置空也不回退令牌内容匹配（M1；
+        此时映射条目可能已被终态清空，语义为「无自身目标可清」）。
+        映射条目含本插件源对象的也锁定 identity 并登记解析结果。
+        两者皆否（原生宿主或本轮未绑定）→ token 通道。-1000 只是
+        相对排序较早，不保证先于所有合法钩子。
         """
 
         if record.channel == "identity":
             return
         state_req = state.get("req") if isinstance(state, dict) else None
-        pairs = getattr(state_req, "_extra_runtime_pairs", None) or []
-        locked = [
-            (src, rt) for src, rt in pairs
-            if any(src is p for p in record.parts)
-        ]
-        if locked:
+        raw = getattr(state_req, "_extra_runtime_pairs", None) or []
+        marker = getattr(state_req, "_extra_runtime_channel", None)
+        locked = []
+        for entry in raw:
+            # 条目表示兼容：v3 为 (src, weakref(rt))；亦容忍调用方写入
+            # 的强引用对（callable 探测后解引用）。
+            src_ref, rt_ref = entry
+            src = src_ref() if callable(src_ref) else src_ref
+            rt = rt_ref() if callable(rt_ref) else rt_ref
+            if src is None or rt is None:
+                continue
+            if any(src is p for p in record.parts):
+                locked.append((src, rt_ref))
+        if marker == "identity" or locked:
             record.channel = "identity"
             record.runtime_pairs[:] = locked
 
@@ -243,6 +262,7 @@ class TurnRegistry:
         record.dead = True
         event = record.event
         parts = record.parts
+        mapped_hits = 0
         if parts and event is not None:
             try:
                 state = event.get_extra(STATE_EXTRA)
@@ -252,6 +272,23 @@ class TurnRegistry:
                         p for p in req.extra_user_content_parts
                         if not any(p is own for own in parts)
                     ]
+                    # N3+M1：优先经请求映射置空本插件运行时实例（映射
+                    # 由宿主补丁在组装后建立；条目 runtime 侧为弱引用，
+                    # 解引用存活者才置空）。命中即锁定 identity 通道并
+                    # 登记条目——此后原块被他人移除/置空也绝不回退令牌。
+                    pairs = getattr(req, "_extra_runtime_pairs", None) or []
+                    for entry in pairs:
+                        src_ref, rt_ref = entry
+                        src = src_ref() if callable(src_ref) else src_ref
+                        rt = rt_ref() if callable(rt_ref) else rt_ref
+                        if src is None or rt is None:
+                            continue
+                        if any(src is p for p in parts):
+                            record.channel = "identity"
+                            record.runtime_pairs[:] = list(pairs)
+                            if isinstance(getattr(rt, "text", None), str) and rt.text:
+                                rt.text = ""
+                                mapped_hits += 1
             except Exception:  # noqa: BLE001
                 pass
         # 组装前/组装中失效的交接（M3）：置空源对象并打失效标记——
@@ -275,7 +312,9 @@ class TurnRegistry:
     def release(self, event: Any) -> bool:
         """释放该轮次的记录（终态：完成/取消后/装饰回收）。
 
-        丢弃全部引用（parts/tokens/run_context 弱引用）。
+        丢弃全部引用（parts/tokens/runtime_pairs/run_context 弱引用），
+        并清空宿主请求上的来源映射条目（N3：映射不延长已结束对象寿命；
+        `_extra_runtime_channel` 能力标记保留，宿主语义不变）。
         返回是否存在记录。
         """
 
@@ -293,7 +332,15 @@ class TurnRegistry:
         self._on_event_gone(record.identity_key)
         record.parts = []
         record.tokens = []
+        record.runtime_pairs = []
         record.run_context_ref = None
+        try:
+            state = event.get_extra(STATE_EXTRA)
+            req = state.get("req") if isinstance(state, dict) else None
+            if req is not None:
+                req._extra_runtime_pairs = []
+        except Exception:  # noqa: BLE001 - 原生宿主/无状态时不适用
+            pass
         event.set_extra(STATE_EXTRA, None)
         return True
 
