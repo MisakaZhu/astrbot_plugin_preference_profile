@@ -1,12 +1,28 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.10（十轮宿主来源映射原型候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.11（十一轮定向修复候选）
 
-交接日期：2026-09-19（十轮原型轮）。交付状态：**T5b 宿主来源映射最小
-原型已在隔离宿主副本验证通过（token_repro 七误删双版 0 复现、历史 50
-场景保持、生命周期保持）；插件 0.1.10 增身份优先失效（原生宿主行为与
-0.1.9 完全一致）；宿主补丁为原型 diff，未修改已安装宿主**。待 Codex
-复验与宿主侧接入决策；不宣称 A0 通过、实机或部署完成。
+交接日期：2026-09-19（十一轮定向修复轮）。交付状态：**宿主来源映射原型
+v2 已修复 M1（通道锁定）/M2（快照语义映射）/M3（组装等待中停用补偿），
+隔离副本双版八场景+全部回归通过；待 Codex 复验；A0 未通过**。未宣称实机、
+云端或部署完成。宿主补丁 diff/应用后文件/哈希清单/单一入口重建脚本见
+偏好管理-宿主来源映射原型-20260919/。
 
-## 0-10. 十轮原型摘要（8a8bdbf → dabaa61）
+## 0-11. 十一轮定向修复摘要（6d73bb5 → 22aac1a + 文档）
+
+| 项 | 修复 | 旧组合（6d73bb5+v1 补丁）真实行为失败对照 | 新组合（v2+0.1.11）双版 |
+| -- | -- | -- | -- |
+| M1 通道锁定 | 归属通道在 on_agent_begin 一次性判定：请求上映射（`_extra_runtime_pairs`，dataclass 私有内存属性）含本插件源对象即锁 identity；此后他人移除/置空原块也**不回退令牌匹配** | ownership_remove_own/blank_own+clear：他人 140 字副本被令牌回退误删（foreign_ok=False） | 八场景 0 defect；m_rework·M1 通过 |
+| M2 快照语义 | 宿主补丁 v2 恢复 extras 序列化→重建原生语义；改为 model_validate 后在请求私有内存属性建立 源对象→最终运行时实例 映射（不进序列化/Provider 参数/历史） | media_window_mutate_foreign：Provider 收到 FOREIGN_CHANGED_DURING_MEDIA（快照被改） | m_rework·M2 通过；默认关闭零注入零记录 |
+| M3 组装等待中停用 | `_blank_record` 对源对象置空并标记 `_source_invalidated`；宿主映射绑定处检查标记补偿置空最终实例——失效先发生、实例后建立的交接补全，不依赖 DB/handler 分发 | media_window_turn_off_plugin：停用后旧偏好仍送达（own_sent=True） | m_rework·M3 通过（原生宿主该分支仍受阻，如实保留） |
+
+全量（隔离副本 v2+0.1.11，双版）：boundary 八场景 0 defect；token_repro
+12 项 0 defect（预算/对照/normal_terminal 保持）；历史 50 场景 0 复现；
+identity_map 探针 4 场景 ALL_PASS；evidence_quality 0 defect 全 assistant；
+m_rework 4/4。**原生宿主对照**（如实保留）：16 脚本双版 264 PASS；
+token_repro 7 受阻；prototype_boundary 4 缺陷（原生失败集合与补丁宿主不同）；
+m_rework M1/M3 受阻失败。单一入口重建：`python rebuild_and_test.py --venv
+<venv> --plugin <repo> --work <new dir> --tag <428|426>`（双版 ALL_OK 已验证）。
+
+## 0-10. 十轮原型摘要（8a8bdbf → dabaa61，历史保留）
 
 | 项 | 内容 | 结果 |
 | -- | -- | -- |

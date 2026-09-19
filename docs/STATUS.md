@@ -1,30 +1,22 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-19（十轮宿主来源映射原型候选 0.1.10）
+最后更新：2026-09-19（十一轮定向修复候选 0.1.11）
 
-## 当前状态：T5b 宿主来源映射最小原型已在隔离宿主副本验证通过（七误删双版 0 复现）；插件 0.1.10 增身份优先失效（原生宿主行为不变）；待 Codex 复验与宿主侧决策
+## 当前状态：T5b 宿主来源映射原型 v2 已修复 M1/M2/M3（隔离副本双版八场景+全部回归通过），待 Codex 复验；A0 未通过
 
-十轮（8a8bdbf → dabaa61）：按第十轮裁定在**隔离宿主源码副本**（AstrBot
-4.28.0/4.26.0 各一份拷贝，HOST/astrbot 遮蔽加载，已安装宿主与共享 venv
-只读未动）实施最小宿主补丁——`ProviderRequest.assemble_context` 重构出
-`assemble_context_with_extra_pairs`（组装构造处显式建立 源对象→序列化块
-配对），Runner `_finalize_extra_pairs` 在 `Message.model_validate` 前把块
-替换回源实例（校验器保留分支生效→运行时对象与源对象同一）。插件
-`_blank_runtime_parts` 改为身份命中即停用令牌回退（仅按对象身份失效），
-原生宿主身份不命中回退令牌（行为与 0.1.9 完全一致）。**原型验证**：
-token_repro 12 项双版 0 defect（七误删全部消失，预算/对照/正常终态保持）；
-历史 50 场景双版 0 复现（含多步/压缩/取消/停用）；直通事实探针双版全过
-（身份直通、自身失效、晚复制副本保留、正常对照）。**原生宿主**：16 脚本
-双版各 264 PASS 保持、token_repro 7 受阻如实保持（原型不掩盖原生受阻）。
-宿主补丁 diff（+54/−9，entities.py + tool_loop_agent_runner.py）与原型
-报告见 偏好管理-宿主来源映射原型-20260919/。本原型未修改已安装宿主、
-未部署，A0 仍待 Codex 复验与宿主侧接入决策。
+十一轮（6d73bb5 → 22aac1a + 文档，0.1.11）：Codex 判 M1/M2/M3 三项 P2。
+- **M1 通道锁定**：归属通道在 on_agent_begin（-1000）一次性判定——请求上映射（`_extra_runtime_pairs`）含本插件源对象即锁 identity 通道；此后他人移除/置空原块也**不回退令牌匹配**（修复"identity_hits 为空即回退令牌误删他人 140 字副本"）。
+- **M2 快照语义**：宿主补丁 v2 恢复 extras 序列化→重建的原生语义（不再共享源实例，默认关闭时其他插件源对象修改不影响本轮输入）；改为 model_validate 后在请求私有内存属性上建立 源对象→最终运行时实例 映射（不进序列化/Provider 参数/历史）。
+- **M3 组装等待中停用**：`_blank_record` 对源对象置空并标记 `_source_invalidated`；宿主映射绑定处检查标记补偿置空最终实例——失效先发生、实例后建立的交接补全，不依赖 DB/handler 分发（原生宿主该分支仍受阻，如实保留）。
+- **验证**：隔离副本双版 prototype_boundary 八场景 0 defect（旧组合真实行为失败对照：remove_own/blank_own+clear 误删、媒体等待改源文本被发送、停用后旧偏好送达）；token_repro 12 双版 0 defect；历史 50 双版 0 复现；identity_map 探针双版 ALL_PASS；m_rework 4/4 双版通过；原生宿主 16 脚本双版 264 PASS 保持、token_repro 7 受阻与 m_rework M1/M3 受阻如实保留（原生 4 边界 defect 同前）。
+- **交付物**：`偏好管理-宿主来源映射原型-20260919/`——host_patch_v2_{428,426}.diff、patched_host_{428,426}/（应用后文件）、host_patch_v2_hashes.txt（原始/补丁/应用后 SHA-256）、rebuild_and_test.py（单一入口重建+全清单，双版 ALL_OK）、prototype_report.md。插件包 0.1.11（46 文件）见 dist/SHA256SUMS.txt；安装包不含宿主补丁，单独安装插件在原生宿主仍有既有受阻限制。A0 仍待 Codex 复验与宿主侧接入决策。
 
 ### 历史轮次摘要
 
-九轮（47bc1c9 → 154e8da/8a8bdbf，0.1.9）：证据收尾通过——T7 独立复核
-通过；T5b 接口依赖受阻已接受（未修）；E1 真实终态/E2 完整 12 项解决；
-新增 HOST_INTERFACE_PROPOSAL 评审稿与 instance_retention_probe。
+十轮（8a8bdbf → dabaa61/6d73bb5，0.1.10）：宿主来源映射原型 v1（七误删
+双版 0 复现首次达成）+ 边界三缺陷交付。九轮（47bc1c9 → 154e8da/8a8bdbf，
+0.1.9）：证据收尾通过、T7 复核通过、T5b 接口受阻已接受。历史 composition
+适配探针基线：a2378c6 每版 1 缺陷、f77d345 每版 6、abdba20 起 0。
 
 ### 历史轮次摘要
 
