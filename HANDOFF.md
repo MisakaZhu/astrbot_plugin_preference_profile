@@ -1,12 +1,25 @@
-# HANDOFF — astrbot_plugin_preference_profile v0.1.9（九轮证据收尾候选）
+# HANDOFF — astrbot_plugin_preference_profile v0.1.10（十轮宿主来源映射原型候选）
 
-交接日期：2026-09-18（九轮证据收尾轮）。交付状态：**T7 独立复核已
-通过；T5b 接口依赖受阻已接受且未修（七场景如实保留）；本轮仅测试
-证据收尾（E1/E2）与文档订正，另交宿主来源映射设计说明
-（docs/HOST_INTERFACE_PROPOSAL.md，评审稿）**。待 Codex 复验；未宣称
-实机、云端或发布完成。
+交接日期：2026-09-19（十轮原型轮）。交付状态：**T5b 宿主来源映射最小
+原型已在隔离宿主副本验证通过（token_repro 七误删双版 0 复现、历史 50
+场景保持、生命周期保持）；插件 0.1.10 增身份优先失效（原生宿主行为与
+0.1.9 完全一致）；宿主补丁为原型 diff，未修改已安装宿主**。待 Codex
+复验与宿主侧接入决策；不宣称 A0 通过、实机或部署完成。
 
-## 0-9. 九轮证据收尾摘要（47bc1c9 → 本候选）
+## 0-10. 十轮原型摘要（8a8bdbf → dabaa61）
+
+| 项 | 内容 | 结果 |
+| -- | -- | -- |
+| 宿主最小补丁 | 隔离宿主源码副本（4.28.0/4.26.0 拷贝，HOST/astrbot 遮蔽）：①ProviderRequest.assemble_context 重构出 assemble_context_with_extra_pairs——组装构造处显式建立 (源 ContentPart, 序列化块) 配对；②Runner._finalize_extra_pairs 在 Message.model_validate 前把块替换回源实例（ContentPart 校验器保留传入实例→运行时对象与源对象同一）。+54/−9，两版同构 | 补丁 diff：偏好管理-宿主来源映射原型-20260919/host_patch_{428,426}.diff |
+| 插件适配（0.1.10） | _blank_runtime_parts：先收集运行时 temp 文本块；身份命中（块 is 源对象）→ 仅按对象身份失效并**停用令牌回退**（finalize 后复制副本携带当前令牌，令牌路径会误删——原型实测发现）；身份未命中（原生宿主）→ 回退令牌子串匹配，行为与 0.1.9 一致 | 原生宿主 16 脚本双版各 264 PASS 保持；token_repro 7 受阻如实保持 |
+| 原型验证（隔离宿主） | token_repro 12 项、历史 50 场景、直通事实探针（identity_passthrough_probe：F1 身份直通、F2 晚复制不继承+副本保留、F3 载荷等价与正常终态）、evidence_quality 终态、x_rework 8 断言 | token_repro 双版 **0 defect**（七误删全部消失，预算/对照/normal_terminal 保持）；历史 50 双版 0 复现；探针双版 ALL_PASS；evidence_quality 0 defect 全 assistant；x_rework 双版 8/8（X5 观察的 assemble_context+裸 validate 层事实不受 Runner 补丁影响，与直通探针互补） |
+
+精确基线：宿主 AstrBot 4.28.0 / 4.26.0（共享 venv 内安装版拷贝，补丁前
+哈希记录于 diff 的 --- 行）；插件基线 8a8bdbf/0.1.9；协作组合 Relation
+Arc 913ca59、Context Bridge d8a7147+0001（隔离副本）。剩余限制见
+偏好管理-宿主来源映射原型-20260919/prototype_report.md。
+
+## 0-9. 九轮证据收尾摘要（47bc1c9 → 154e8da/8a8bdbf，历史保留）
 
 | 项 | 处置 | 证据 |
 | -- | -- | -- |

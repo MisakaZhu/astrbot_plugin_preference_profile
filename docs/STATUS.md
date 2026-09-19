@@ -1,26 +1,30 @@
 # STATUS — astrbot_plugin_preference_profile
 
-最后更新：2026-09-18（九轮证据收尾候选 0.1.9）
+最后更新：2026-09-19（十轮宿主来源映射原型候选 0.1.10）
 
-## 当前状态：T7 已通过独立复核；T5b 接口依赖受阻已接受（未修）；证据与文档收尾完成，待 Codex 复验
+## 当前状态：T5b 宿主来源映射最小原型已在隔离宿主副本验证通过（七误删双版 0 复现）；插件 0.1.10 增身份优先失效（原生宿主行为不变）；待 Codex 复验与宿主侧决策
 
-九轮（47bc1c9 → 本候选，仅证据/文档收尾）：**T7 预算修复独立复核
-通过**（旧 abdba20 上限126 送达140>126、新候选不注入/上限140 完整
-注入，双版）。**T5b 剩余七场景维持未修受阻**（token_repro 适配版
-双版各 7 项 defect_reproduced=true，如实保留）。E1：x_rework
-BudgetProvider 改返回真实父类响应并断言 role=assistant/预期回复/
-正常完成与记录释放（修复前四用例在双版均为 AgentState.ERROR、
-role=err 的假 PASS，已由证据探针记录并修复）。E2：适配版
-token_repro 完整 12 项双版执行（允许无记录、Provider 侧核预算、
-140 对照强制完整注入、要求正常终态）。文档：ACCEPTANCE 统计改
-16 脚本每版 264 并单列「通过/未修受阻/接口事实」；源码「不可伪造/
-他人不含本轮令牌」等过宽注释收窄；ADR「构造性不可实现」收窄为
-「当前原生转换路径与既定受支持接口下缺少已验证关联」。接口设计
-说明 docs/HOST_INTERFACE_PROPOSAL.md（源→运行时映射评审稿，
-owner_key 陷阱、全边界；离线最小验证 instance_retention_probe：
-实例传入被宿主保留、dict 重建为新实例、注册表不受影响，双版成立）。
-全量：16 脚本双 venv 各 264 PASS；历史 50 场景×双版通过；
-token_repro 12 项双版 7 受阻 + 5 过。
+十轮（8a8bdbf → dabaa61）：按第十轮裁定在**隔离宿主源码副本**（AstrBot
+4.28.0/4.26.0 各一份拷贝，HOST/astrbot 遮蔽加载，已安装宿主与共享 venv
+只读未动）实施最小宿主补丁——`ProviderRequest.assemble_context` 重构出
+`assemble_context_with_extra_pairs`（组装构造处显式建立 源对象→序列化块
+配对），Runner `_finalize_extra_pairs` 在 `Message.model_validate` 前把块
+替换回源实例（校验器保留分支生效→运行时对象与源对象同一）。插件
+`_blank_runtime_parts` 改为身份命中即停用令牌回退（仅按对象身份失效），
+原生宿主身份不命中回退令牌（行为与 0.1.9 完全一致）。**原型验证**：
+token_repro 12 项双版 0 defect（七误删全部消失，预算/对照/正常终态保持）；
+历史 50 场景双版 0 复现（含多步/压缩/取消/停用）；直通事实探针双版全过
+（身份直通、自身失效、晚复制副本保留、正常对照）。**原生宿主**：16 脚本
+双版各 264 PASS 保持、token_repro 7 受阻如实保持（原型不掩盖原生受阻）。
+宿主补丁 diff（+54/−9，entities.py + tool_loop_agent_runner.py）与原型
+报告见 偏好管理-宿主来源映射原型-20260919/。本原型未修改已安装宿主、
+未部署，A0 仍待 Codex 复验与宿主侧接入决策。
+
+### 历史轮次摘要
+
+九轮（47bc1c9 → 154e8da/8a8bdbf，0.1.9）：证据收尾通过——T7 独立复核
+通过；T5b 接口依赖受阻已接受（未修）；E1 真实终态/E2 完整 12 项解决；
+新增 HOST_INTERFACE_PROPOSAL 评审稿与 instance_retention_probe。
 
 ### 历史轮次摘要
 

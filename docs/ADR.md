@@ -309,3 +309,29 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
   自动满足「复制不继承所有权」；若走字段路线，须由宿主提供受控的
   新建/复制语义并证明同值伪装不会使清理扩散。本轮未修改宿主、未把
   未实现方案写成已修。
+
+
+## 十轮原型修订（隔离宿主副本来源映射验证，2026-09-19）
+
+- **宿主最小补丁（原型，隔离副本）**：`ProviderRequest` 组装构造处
+  显式建立 (源 ContentPart, 序列化块) 配对
+  （`assemble_context_with_extra_pairs`，原 `assemble_context` 签名
+  委托不变）；Runner `_finalize_extra_pairs` 在 `Message.model_validate`
+  前把配对块替换回源实例——校验器保留传入实例，**运行时对象与源对象
+  同一**。补丁 +54/−9（entities.py、tool_loop_agent_runner.py），
+  4.28.0/4.26.0 两版同构适用。
+- **插件身份优先失效（0.1.10）**：`_blank_runtime_parts` 检测到任一
+  运行时块与源对象同一（宿主直通）即仅按对象身份失效并**停用令牌
+  回退**——finalize 后被复制的同文副本携带当前令牌，令牌路径会误删
+  （原型实测发现）；原生宿主身份不命中回退令牌，行为与 0.1.9 一致。
+- **验证结果（隔离宿主副本）**：token_repro 12 项双版 0 defect（七误删
+  全部消失，预算/对照/正常终态保持）；历史 50 场景双版 0 复现（含多步、
+  压缩、取消、停用、prefix_collision、retention）；直通事实探针（身份
+  直通/晚复制不继承+副本保留/载荷等价）双版全过；evidence_quality 双版
+  0 defect 全 assistant；x_rework 双版 8/8（X5 观察的
+  assemble_context+裸 validate 层事实不受 Runner 补丁影响）。原生宿主
+  16 脚本双版 264 保持、token_repro 7 受阻如实保持。
+- **剩余限制**：原型仅验证 4.28.0/4.26.0 现有组装路径，未覆盖宿主其他
+  `Message` 构造点；多步 Agent 第二次调用复用同一 run_context（T6a
+  场景已覆盖），宿主若在轮次内重建消息需更新配对；配对的弱引用生命
+  周期与异常路径仍需宿主侧正式评审；未修改已安装宿主，不构成部署。

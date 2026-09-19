@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.10（2026-09-19 十轮宿主来源映射原型候选）
+
+按第十轮裁定在隔离宿主源码副本验证「源对象→最终运行时对象」最小映射：
+
+- 宿主最小补丁（原型 diff，未修改已安装宿主）：assemble_context 重构出
+  assemble_context_with_extra_pairs（构造处显式建立 源对象→序列化块
+  配对）；Runner _finalize_extra_pairs 在 model_validate 前把块替换回
+  源实例（校验器保留分支生效→运行时对象与源对象同一）。
+- 插件 _blank_runtime_parts：身份命中（宿主直通）→ 仅按对象身份失效并
+  停用令牌回退；未命中（原生宿主）→ 回退令牌，行为与 0.1.9 一致。
+- 验证：隔离宿主 token_repro 12 项双版 0 defect（七误删全部消失）、
+  历史 50 场景双版 0 复现、直通事实探针双版全过；原生宿主 16 脚本双版
+  264 保持、token_repro 7 受阻如实保持。宿主补丁 diff 与原型报告见
+  偏好管理-宿主来源映射原型-20260919/。
+
+## 0.1.9（2026-09-18 九轮证据收尾候选）
+
+Codex 第九轮裁定 T7 通过、T5b 接口依赖受阻已接受（未修）。收尾：
+
+- E1：x_rework BudgetProvider 改返回父类真实 LLMResponse（修复前四
+  用例双版 AgentState.ERROR/role=err 假 PASS）；断言 role=assistant、
+  预期回复、正常完成与记录释放。
+- E2：token_repro 第九轮适配版双版完整 12 项（允许无注入记录、
+  Provider 侧核预算、140 对照强制完整注入、正常模型终态）。
+- 文档：ACCEPTANCE 统计 16 脚本每版 264 并分列「通过/未修受阻/
+  接口事实」；源码与 ADR 过宽归属措辞收窄；新增
+  docs/HOST_INTERFACE_PROPOSAL.md 与 instance_retention_probe。
+
 ## 0.1.8（2026-09-18 八轮返工候选）
 
 处理 Codex 八轮复核（abdba20）两项 P2：
