@@ -1,3 +1,5 @@
+> **2026-09-20 当前状态：指定宿主 v3 组合的 A0 已独立验收通过，A1 待实机。以下保留历史阶段记录；其中“待复验 / 未通过 / 受阻”须结合当时版本阅读。请先读[当前发行说明](RELEASE_STATUS.md)。**
+
 # COMPATIBILITY — astrbot_plugin_preference_profile
 
 ## 宿主兼容矩阵（以真实包实测为准）

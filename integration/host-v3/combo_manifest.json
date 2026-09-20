@@ -1,0 +1,172 @@
+{
+  "schema": "combo-manifest/1",
+  "plugin": {
+    "commit": "7c99f5ad3538794f14b2171e23df96c57afe10bd",
+    "version": "0.1.12",
+    "metadata_yaml_sha256": "6ab8890770f2301ff5efb28d29769e7c973a7be0ca475e5631ce0f9eed16e81a",
+    "files": {
+      ".gitignore": "b65aebb3dd8581aba2e3fbe9156bc523588a7943ea7884ae81c938c2e489038a",
+      "_conf_schema.json": "6545fd5a82cac9278e5ccb932836180c1b9cb47a196be941405c6d92a62ebcb1",
+      "CHANGELOG.md": "b85acf6a58a9beb970b8bcc0690a007c9e7f46d1479a157e1664ebfa259314fd",
+      "docs/ACCEPTANCE.md": "f83b822ce0269199d084b82950360637abce3cbe8de48eef34134384a91cd24f",
+      "docs/ADR.md": "9e3653aa381438807ca927ff4d2e6fc57662eb01533f8dbabd86f95596c3d33b",
+      "docs/COMPATIBILITY.md": "ce70c6092567d4c3da86b1178c485fe2285a10393b3b0cf0dde3ce51fa65eeb8",
+      "docs/HOST_INTERFACE_PROPOSAL.md": "284eb10392e0e94bf0393e604b071b39ae808d3ce59e6370a9141f48bc9df679",
+      "docs/PLAN.md": "8c2938d00783bd3fce20e340c971c1b0f5122a07a0d59840b54b541918bcfc1d",
+      "docs/STATUS.md": "4ac107041ab438618c3fd120e7383403656ec1a54cd7ee5e5a93619821b536c3",
+      "HANDOFF.md": "a8f67cc37d0817d1f536eb0af52e02921e2641fa3ae8ae8a1cedcaa49b5e9095",
+      "main.py": "cef6793905e8c4806279c0f3b2409634e657e91e40fc2774c5dfc20f32a1157c",
+      "metadata.yaml": "6ab8890770f2301ff5efb28d29769e7c973a7be0ca475e5631ce0f9eed16e81a",
+      "patches/0001-uctx-turn-exclusion-protocol.patch": "47432b1296c8200aa7c408882ccdcda314909ed29364b6e9cc0ad8766102c365",
+      "patches/README.md": "7db438e28ed327edef558b1ed9cdd1cbeebe0e6d8c19761da62459e11351e354",
+      "patches/SHA256SUMS.txt": "d8d5b5658fd321edcb9daca1adb8652dd0741aee6f5acb0f369be39d68ece80f",
+      "pref_profile/__init__.py": "c8f1895ba6389a36addddac9c1801cef2744104fa8dd52a07ed13e1e2e136e56",
+      "pref_profile/bridge_guard.py": "233448f3a06a1d73dc2b2dd8b166d05b85f5f2187dddac4ccab8c2f32d0f5ba5",
+      "pref_profile/commands.py": "07287c38d4504c0ead3e2e7987b94bc9d55d01d912621e37d45c8eb269b0016f",
+      "pref_profile/identity.py": "961a332e4ab1e8ffcb198fe10c9a4ff70abf7fbc8fe2409a5803dccc38a02594",
+      "pref_profile/injection.py": "9fae0b52ae2126a796211e03725a840263acf56a28f8e57192b5b0d3e9bb7fe8",
+      "pref_profile/model.py": "adf26bb4c463444dac859e85b6cee2c57975ca1c97a7bd6fa76d7a719e7ac7e0",
+      "pref_profile/policy.py": "2b971d5ac8ea70c364b226461a77842cd3a3135ea83e79b836dc614cbb681255",
+      "pref_profile/prompt_builder.py": "5fa2d8dabb5fd00252c750ad6a48272a519f05ab0b964ad8c5c4a0bcbcee2f3b",
+      "pref_profile/relation_snapshot.py": "87924ca34f2744e9ec4114b71c8818ad8a7cd351472f288351edce9d3cca7448",
+      "pref_profile/store.py": "646c96e6a5ae5667850334febfc27f338ea4c65d5c1323f3b903ad428f3e25db",
+      "README.md": "6701ceb99c3b050a655d780e597d7c04ed481ec328618d717a62fe7a209fde18",
+      "requirements.txt": "3b2b14f9b95e3a7991a5c22bf8fdcea7073843337725bf7b601084f54191c1fb",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/fakes.py": "7cd24367629d934efd8a59e9511c1b754bea8392ca230da449041127be91d89e",
+      "tests/m_rework_check.py": "07fc57ef93268e5f828e3f94dfe8274ee6a01478d01b61ca989c37d5d109051b",
+      "tests/n3_lifetime_check.py": "d731849109da9a305a9dee19a5ba2a94bbf66554208e10c503a61e900ae9afd1",
+      "tests/p0_host_contract_check.py": "ccb0583d5475a4eb0d6ed66cc425205c1296e86d15030ff857881b2c11fe3327",
+      "tests/p1_store_check.py": "26cdd5161867fdfae9e8d9026110e5fe705353edd417243836a7cb3ed77ae5d9",
+      "tests/p2_policy_check.py": "d6b910183ebcf7ac5cfec49144cd9dfba8ceaec2316240ed6a1989288d46b785",
+      "tests/p3_commands_check.py": "133b5b63b3499998d2f0d7dff469cc5baf267a0b460cc6c783e0feca5215f2f1",
+      "tests/p3_import_check.py": "c150e719c01cf459fc963304e9f577260161de27a37a19538896ad29dbb7c016",
+      "tests/p4_injection_check.py": "03fcba4a575c0ee20271f32946536b8c28f32df17fe6fcb637495d0016801768",
+      "tests/p5_integration_check.py": "c20acfdba472ca9e627a5abececb5467a905ff5788557f6b6017431fd71b519c",
+      "tests/p6_acceptance_check.py": "80b8671de099606aad6a6b4ba4dd2ceb50cd975f10d9ddc7bb63a0706330b952",
+      "tests/p7_lifecycle_check.py": "13d817a8abd390606305c474714b6d1ab4125f2d64ea569552566fa2efb30f1e",
+      "tests/r3_rework_check.py": "055d2348d38d75cd7fb2974a696325f13772de26ea739a918f5ec64beace58aa",
+      "tests/r_rework_check.py": "cd90155fa000e7e1fcd61f5986e096969947b8a0e5a2fba0ce9801d47aad431c",
+      "tests/t_rework_check.py": "e10ae1a675cdf9390042e8e7ee448aa68bd3d61f4d97dc0cdbd56b8424371330",
+      "tests/u_rework_check.py": "965254283e6e98b16b4cf8718edd9cefd826be613b7cfcf37d0c85bac2a3f5a2",
+      "tests/v_rework_check.py": "aaa866e49c931d8d92ec69045945c8a1d452a01c16491cc526bf5639b66805a8",
+      "tests/w_rework_check.py": "ae037068508f2600eb556b60b55f339156c5c9f04c33aa250f263fd0de684ee3",
+      "tests/x_rework_check.py": "cda0bc2e0ea617de3bdae4ab2bd62c1b9e2e7ee68aaa90467fa384d6605f3e47"
+    },
+    "note": "安装包不含宿主补丁；单独安装插件在原生宿主仍受限"
+  },
+  "collab": {
+    "relation_arc": {
+      "commit": "913ca59036267de2bcc481b8910b5f6fc8044f91",
+      "files": {
+        ".gitignore": "c5962f69bb67cf2a98a0adb6fc45a43e3ca91b3e25fb58103594bb8754cf4fa9",
+        "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "C1_FAVOUR_IMPLEMENTATION_CARD.md": "242a49818ab0e347c58f6f7109c8e327b66a1c53cf7f65be4c84ed8ebbb3d0ab",
+        "C2_FAVOUR_IMPLEMENTATION_CARD.md": "962511331f6d592be6cfa37942eabed1f2fe2cbd5989d312c9597533a0e949f0",
+        "C3_FAVOUR_IMPLEMENTATION_CARD.md": "91eb95b448079c194f529335ba91ba9a7c59eef53dfd19c4949324f9e8d8a0a9",
+        "C4_FAVOUR_IMPLEMENTATION_CARD.md": "367d4345999d1d402aacfa5b2692de1210704ee927284c30e5bf90e47d006de0",
+        "C_FULL_TESTED_FREEZE.sha256": "ad13e07a9d381866ceb278886643824f992fb7d55e4eb343bcd5c8dd6867dbee",
+        "commands.py": "d27223d6a24cab90d5d5d01dad1f69084d3d650baa0ee34490ffe65c5eea070e",
+        "config_manager.py": "f994988ae0a5a5ceffc628d9cf26004f443b094101b21d472fc7cb5499c7f09a",
+        "docs/BASELINE_VALIDATION.md": "8a6cba022944f986a56e0c3b53ff890377fd0dadc805f08916bfc2923f403940",
+        "docs/BEHAVIOR_CONTRACT.md": "dd05c5fa667b6c9878e014785a9402a2d154effaf2498a303a96699f2f6cebcb",
+        "docs/EVALUATION_DECISIONS.md": "9c3afa33d4ba4109b3b39aad075e4d7875c5f378fd8e7a932c2c8713f001d184",
+        "docs/HOST_COMPATIBILITY.md": "1926e9485c80c9b3b9d9ba19a447ae6c8109292f263e8389cbbe4b3282e6f501",
+        "docs/PERFORMANCE_BASELINE.md": "f12428b2b150dab3e37ba0d1589a379d564c30d0d5198a370a194238472d1580",
+        "docs/REUSE_DECISIONS.md": "74c7c77089382645553e833256de0e22e15220515681115f3afe30a1633566aa",
+        "docs/UPGRADE_DELIVERY.md": "e1321fadcd585b12942790f61ac158f72f025807380b2927841914ab5ca66056",
+        "main.py": "7f81c468fcf7e0eaea8ad97b6091d35637a72607e2e3b0c9941d72f519e0bc06",
+        "metadata.yaml": "1fee1997e5f2f7f27132695ac682b151092ab60025bd16e1a5a191e1a3f3189a",
+        "pages/settings/app.js": "9f9d3cda8e9880e81f4d4fe06da2a46ca8f8ae008d4cd8001ecee5a085f1d2df",
+        "pages/settings/index.html": "e2c563dddedfdc2a7ed10bde5ce303acab0a3cf4af8bc5523479ae6560df4923",
+        "pages/settings/style.css": "6a7d65982b2e666f39816bd41056446b05399ebbc684580bea893e26e8f6af2e",
+        "pages_api.py": "b421d66c155c5cb28063f9d374985b8e130d9c771ce66831cc9a295bf6de85c3",
+        "prompts.py": "445b92a1869f614951a1a51d0f0b9c2eda4d780a391fd738661f3621f43160a2",
+        "README.md": "771d4db65ccdcbe98e46af6398535d10f843bce39ba2cf4b1af55957c07a70dd",
+        "relation_engine.py": "c6bdc49fae6a867b90a0d19709b38a6aec05889f5f3b7a77cd40ada68abeecc6",
+        "relation_protocol.py": "049456311f52bd850379673ff3e7fd00daaed899ca25e22bd181c817c5db6b8a",
+        "relation_store.py": "f7bbe9bc176a6d7897e6f6b7fc7bd19dea5327837a8c0888a46d1722ff6313ef",
+        "relationship_types.py": "c70115ea9e41b094b6b0886abadb7a396bbc9fe0c698051e050d78fd51e29605",
+        "tests/pages_app_globals.mjs": "691fca0229c4b7ab02e62ad0c936894430d6ec017a2bcb3d5d62f523be351387",
+        "tests/pages_app_harness.mjs": "e1562c1c3a2b55923958178b50219c2134928152bf44021b005ff46f55232354",
+        "tests/test_core.py": "f2e110827494169ac4ea7ed4b4e9cb0798cd755460db126c140928e45098962f",
+        "tests/test_host_compat.py": "c7037c86420e5963ea1184ecfb8c9598cdabf2d87ccf40cc5691f206a4effcf4",
+        "tests/test_main.py": "90a6750ad3538325ced02823199dd06bbf99036043ed1d17fecdda6bf6d2a9bd",
+        "tests/test_p0.py": "611d4ee86797d5b1ac1621c811ab8325f6851d04f480a39d337ef027ec711cff",
+        "tests/test_pages_js.py": "2fac78954eec54ec91d58f1853307a5eeb390deec752ee825de76a3bfea7dceb",
+        "tools/behavior_contract_samples.py": "a685a6c9d9a9e0e7c81dd7b33f52e1ad0fe019f2ccc23ef688b1550a9ff88fd0",
+        "tools/benchmark_store.py": "d4dc80e9d13b6b03858e495d766b69fb964842b8c2413c86b7b64f862296779c"
+      }
+    },
+    "uctx": {
+      "commit": "d8a7147e2a43c37b83781b92774afae2a254be60",
+      "files": {
+        ".gitignore": "0d64023cd4773b8d74b3447a1d6fbf998a203b20d6c3f0be732247207718d99e",
+        "_conf_schema.json": "ab13680b4811b1a43329c62e1c17f33f3e3a4c5747db053f3376a5b51fb21a5b",
+        "CHANGELOG.md": "2b35172010fe0bba5a466dee8e172cbbdc4830a09714973fcb2dacd8585eada1",
+        "docs/ACCEPTANCE.md": "252e64c263b896968f60a74908e096704c4753a07e1be89901171fea30877b93",
+        "docs/ADR.md": "2bffed4fece39c60b27f3fd513a7ca6ba03319ec65eb6ebbcad355bc31532ae7",
+        "docs/COMPATIBILITY.md": "c8541e980f3b9d9e1023bc7f98b85aa2148cf37b90827dac21fe2c0b8682ee05",
+        "docs/PLAN.md": "0a8cbae2a52b3510993e7e2e071f37a8eadca44fe6bd8e5dc7c2edeb6fabb44d",
+        "docs/STATUS.md": "5aa6fbd93c7631ef4bc620bfa676207e9dc20e83735bcf5fac2e1a8844a1f3fd",
+        "HANDOFF.md": "57cc6f84fecf94d05f904ef824e28d15e130194c651a45e4b8d466b03326f852",
+        "main.py": "8e211de788bb71b459fbcf9e4b73a545ed802e9ccfee50016c66dc69d81a576d",
+        "metadata.yaml": "c41273a8ae807f4f10d93ac383f9c72cf6abad99e61da2c4338310a23137ae61",
+        "README.md": "e06ec10d1a122ee7165c52c1133650bda1a319145d8bfd4576a2577323f7df1d",
+        "requirements.txt": "26cec9025c0863d76bdbc52e8c404c06ba50110c6af04af8af5daeca8c34ce94",
+        "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tests/fakes.py": "f108ea58be33d8ac20d576f6555c35a0f44679ff0b4972be10bccd70034d1984",
+        "tests/harness.py": "17095d5bb5267345050fbec81deea11b75aaa759a18f2a6d3dc28af83a9fda3f",
+        "tests/p0_lifecycle_check.py": "8bc061f92b754216ca9e2b0b435c55ea744fb63fbea0f35631f7ed086dbcef26",
+        "tests/p1_identity_scope_check.py": "42cc044ae98e4e9df4f254b4e4a3e920ac6a4b05f4c5d572131d276de50790e4",
+        "tests/p2_ledger_check.py": "0863f103e4483db4444f84f3726ef7ee7147d0f415bfc6882f51e7651860ff50",
+        "tests/p3_bridge_flow_check.py": "50a5e855be56ecfefa51d70254dfa2f764dade651be6fa22762da38a5ae127dd",
+        "tests/p4_concurrency_check.py": "b1d2397cc7004a1e45e488c91296437088988a74095fc984b8e4985fa368ba0c",
+        "tests/p5_commands_check.py": "64ca783c3ee12227a6d2ccc1dfba7e7573e4eadd64587949162d97b44372d57c",
+        "tests/p6_packaging_check.py": "f9b341a21e8140b752e7b183b55d3ce9d332c4e79b1ce8ebed476098f0011acf",
+        "tests/r_rework_check.py": "4ff966a538866b47021f33eb63fdaa79a628d27cb26f9358a635c7510eaf1b8d",
+        "uctx_bridge/__init__.py": "5923bf041153cbef4cac3a6151835d5f05a00fc6219c96fa092793c90637bb67",
+        "uctx_bridge/bridge.py": "4c467fdc8890ca77d93652b8288ab057cdf179473e2436878c06c6f56fe5c13e",
+        "uctx_bridge/commands.py": "b0ba30b57ad06bbb41ac90b07afea400d2457ee2bd2e0d06c7577361b6cc90ea",
+        "uctx_bridge/identity.py": "1e1eb65de90b7cc1c278e8ab688f60f8e076474fc9f04aa2f15ec70ce2795e7e",
+        "uctx_bridge/ledger.py": "005e58778647d8e0485d05a2571fee8e26e90131c9897dee82488c3c380b8bfb",
+        "uctx_bridge/scope.py": "7dd6d139813eeb7c47de38071c9f2dc9f1092cb35ef8a4e2797409d1d301f6fa"
+      },
+      "patch": {
+        "path": "patches/0001-uctx-turn-exclusion-protocol.patch",
+        "sha256": "925d23224fe35fa694f5cd71036ead5e6f3de4e5202f1ca5c2ec27639959f0ad",
+        "source": "plugin commit 7c99f5a blob"
+      }
+    }
+  },
+  "host": {
+    "tags": {
+      "428": {
+        "files": {
+          "core/provider/entities.py": {
+            "original_sha256": "7be53b4931c7a042923e6736d4ea9b7ee5e0fc149fc1f00af038632ef3fbcccc",
+            "patched_sha256": "5515f518759ba7f97b4aade76b1d996c14257f9773ae3cd36317d8a57a128932"
+          },
+          "core/agent/runners/tool_loop_agent_runner.py": {
+            "original_sha256": "8aa95c2ea5efe47fb4e24aed9976853908769eb7fa897dd30431fee9cd29ebf5",
+            "patched_sha256": "f518f8c7b729387e70b6035a318e6106451db9d9c88dac00e932e5942bdb6efe"
+          }
+        },
+        "patch_sha256": "0678045fdc2f7fed1b7189d84fe5267053348fef38ea3a44a2e1c9ee2de1f27e"
+      },
+      "426": {
+        "files": {
+          "core/provider/entities.py": {
+            "original_sha256": "2d58ebaf2d0b7c335364aac15373054aea082f375cd3cfe8b2ccc05de0057136",
+            "patched_sha256": "0af157960f791f4b6b81c187a4ef773584f2ed84fa6358ae6cd0c01ece29801f"
+          },
+          "core/agent/runners/tool_loop_agent_runner.py": {
+            "original_sha256": "cc5237f517b72dd912a59ea9c14209ab44255cf48d0c9e74f60bfbdd02743233",
+            "patched_sha256": "851b2488add9ff1875ba56749c7d5f3cd396964cdc1adeb089b2935f22948a5e"
+          }
+        },
+        "patch_sha256": "cb7f51ae1d7746cd828aab1b8c60420f0200e7a609456f59a80f6ca8d4f3d874"
+      }
+    }
+  }
+}

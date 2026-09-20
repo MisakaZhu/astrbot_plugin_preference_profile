@@ -1,0 +1,4 @@
+# Frozen host support and protocol patch must retain their exact bytes.
+integration/host-v3/** -text
+patches/*.patch -text
+docs/*.pdf -text

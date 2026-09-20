@@ -1,0 +1,18 @@
+# host_patch v3 哈希清单（人类可读摘要；机器可读全量见 combo_manifest.json）
+# 插件候选: 7c99f5a (0.1.12)  协作: relation 913ca59 / uctx d8a7147+0001
+# uctx 0001 补丁 sha256=925d23224fe35fa694f5cd71036ead5e6f3de4e5202f1ca5c2ec27639959f0ad
+
+428 core/provider/entities.py
+  original_sha256=7be53b4931c7a042923e6736d4ea9b7ee5e0fc149fc1f00af038632ef3fbcccc
+  patched_sha256=5515f518759ba7f97b4aade76b1d996c14257f9773ae3cd36317d8a57a128932
+428 core/agent/runners/tool_loop_agent_runner.py
+  original_sha256=8aa95c2ea5efe47fb4e24aed9976853908769eb7fa897dd30431fee9cd29ebf5
+  patched_sha256=f518f8c7b729387e70b6035a318e6106451db9d9c88dac00e932e5942bdb6efe
+  patch_v3_sha256=0678045fdc2f7fed1b7189d84fe5267053348fef38ea3a44a2e1c9ee2de1f27e
+426 core/provider/entities.py
+  original_sha256=2d58ebaf2d0b7c335364aac15373054aea082f375cd3cfe8b2ccc05de0057136
+  patched_sha256=0af157960f791f4b6b81c187a4ef773584f2ed84fa6358ae6cd0c01ece29801f
+426 core/agent/runners/tool_loop_agent_runner.py
+  original_sha256=cc5237f517b72dd912a59ea9c14209ab44255cf48d0c9e74f60bfbdd02743233
+  patched_sha256=851b2488add9ff1875ba56749c7d5f3cd396964cdc1adeb089b2935f22948a5e
+  patch_v3_sha256=cb7f51ae1d7746cd828aab1b8c60420f0200e7a609456f59a80f6ca8d4f3d874

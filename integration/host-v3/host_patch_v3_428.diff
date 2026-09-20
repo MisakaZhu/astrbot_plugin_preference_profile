@@ -1,0 +1,162 @@
+=== a/core/provider/entities.py b/core/provider/entities.py
+--- D:/第三方插件完善/.venv/Lib/site-packages/astrbot/core/provider/entities.py	2026-09-13 03:58:02.490289000 +0800
++++ D:/第三方插件完善/.tmp_t12verify/new/astrbot/core/provider/entities.py	2026-09-19 19:44:41.475283500 +0800
+@@ -187,8 +187,20 @@
+ 
+     async def assemble_context(self) -> dict:
+         """将请求(prompt、image_urls 和 audio_urls)包装成统一消息格式。"""
++        return (await self.assemble_context_with_extra_pairs())[0]
++
++    async def assemble_context_with_extra_pairs(self) -> tuple[dict, list]:
++        """同 assemble_context，并返回 extra parts 的 (源对象, 序列化块) 配对。
++
++        T5b 原型（隔离宿主副本验证用）：配对在本构造函数内建立——此处
++        确切知道每个内容块的来源；Runner 在最终实例化前把序列化块替换
++        回源对象，使运行时对象与源对象同一（ContentPart 校验器对传入
++        实例保留原对象）。仅内存、仅当前请求；不改变任何序列化内容与
++        原 assemble_context 返回格式。
++        """
+         # 构建内容块列表
+         content_blocks = []
++        extra_pairs: list = []
+ 
+         # 1. 用户原始发言（OpenAI 建议：用户发言在前）
+         if self.prompt and self.prompt.strip():
+@@ -203,7 +215,9 @@
+         # 2. 额外的内容块（系统提醒、指令等）
+         if self.extra_user_content_parts:
+             for part in self.extra_user_content_parts:
+-                content_blocks.append(part.model_dump_for_context())
++                block = part.model_dump_for_context()
++                content_blocks.append(block)
++                extra_pairs.append((part, block))
+ 
+         # 3. 图片内容
+         if self.image_urls:
+@@ -255,10 +269,10 @@
+             and not self.image_urls
+             and not self.audio_urls
+         ):
+-            return {"role": "user", "content": content_blocks[0]["text"]}
++            return {"role": "user", "content": content_blocks[0]["text"]}, extra_pairs
+ 
+         # 否则返回多模态格式
+-        return {"role": "user", "content": content_blocks}
++        return {"role": "user", "content": content_blocks}, extra_pairs
+ 
+ 
+ @dataclass
+=== a/core/agent/runners/tool_loop_agent_runner.py b/core/agent/runners/tool_loop_agent_runner.py
+--- D:/第三方插件完善/.venv/Lib/site-packages/astrbot/core/agent/runners/tool_loop_agent_runner.py	2026-09-13 03:58:02.395241800 +0800
++++ D:/第三方插件完善/.tmp_t12verify/new/astrbot/core/agent/runners/tool_loop_agent_runner.py	2026-09-19 22:11:15.864615200 +0800
+@@ -5,6 +5,7 @@
+ import traceback
+ import typing as T
+ import uuid
++import weakref
+ from contextlib import suppress
+ from dataclasses import dataclass, field, replace
+ from pathlib import Path
+@@ -313,8 +314,10 @@
+             or request.audio_urls
+             or request.extra_user_content_parts
+         ):
+-            m = await self._assemble_request_context_for_provider(request)
+-            messages.append(Message.model_validate(m))
++            m, extra_pairs = await self._assemble_request_context_for_provider(request)
++            user_message = Message.model_validate(m)
++            self._bind_extra_runtime_pairs(request, m, user_message, extra_pairs)
++            messages.append(user_message)
+         if request.system_prompt:
+             messages.insert(
+                 0,
+@@ -333,22 +336,29 @@
+     async def _assemble_request_context_for_provider(
+         self,
+         request: ProviderRequest,
+-    ) -> dict[str, T.Any]:
++    ) -> tuple[dict[str, T.Any], list]:
++        """组装请求上下文，并返回 extra parts 的 (源对象, 序列化块) 配对。
++
++        T5b 原型 v2：序列化与原生完全一致（extras 快照化后由
++        model_validate 重建，源对象后续修改不影响本轮输入）；
++        源对象→最终运行时实例的关联由调用方在 model_validate 之后经
++        `_bind_extra_runtime_pairs` 建立。
++        """
+         modalities = self.provider.provider_config.get("modalities", None)
+         if not modalities:  # Unconfigured (None or empty list) defaults to support all modalities for backward compatibility
+-            return await request.assemble_context()
++            return await request.assemble_context_with_extra_pairs()
+ 
+         supports_image = "image" in modalities
+         supports_audio = "audio" in modalities
+         if supports_image and supports_audio:
+-            return await request.assemble_context()
++            return await request.assemble_context_with_extra_pairs()
+ 
+         adjusted_request = replace(
+             request,
+             image_urls=request.image_urls if supports_image else [],
+             audio_urls=request.audio_urls if supports_audio else [],
+         )
+-        context = await adjusted_request.assemble_context()
++        context, extra_pairs = await adjusted_request.assemble_context_with_extra_pairs()
+         content = context.get("content")
+         if isinstance(content, str):
+             content_blocks: list[dict[str, T.Any]] = [{"type": "text", "text": content}]
+@@ -364,7 +374,54 @@
+             for _ in request.audio_urls:
+                 content_blocks.append({"type": "text", "text": "[Audio]"})
+ 
+-        return {"role": "user", "content": content_blocks}
++        return {"role": "user", "content": content_blocks}, extra_pairs
++
++    @staticmethod
++    def _bind_extra_runtime_pairs(
++        request: ProviderRequest,
++        assembled: dict[str, T.Any],
++        message: Message,
++        extra_pairs: list,
++    ) -> None:
++        """T5b 原型 v3：建立 源对象 → 最终运行时实例 映射（快照+弱引用）。
++
++        extras 仍按原样序列化→校验重建（快照、校验、_no_save 语义与
++        原生一致，源对象后续修改不影响本轮输入，M2）；重建后按「构造处
++        配对的块 ↔ 内容列表同索引实例」登记每个源对象对应的最终运行时
++        实例——runtime 侧以 **弱引用** 登记（N3：映射不延长最终实例
++        寿命，宿主侧自身释放规则；src 侧强引用与请求持有的 extra parts
++        同寿命）。映射写入请求私有属性（dataclass 动态属性，不进入任何
++        序列化、Provider 参数或历史），插件终态释放时清空条目。
++
++        失效先发生、实例后建立的交接（M3）：若源对象已被来源插件标记
++        失效（`_source_invalidated`，如组装等待中的 clear/正式停用），
++        在此对最终实例补偿置空——不依赖来源插件后续钩子是否仍被分发，
++        也不依赖已关闭数据库或已停用 handler。
++        """
++        if not extra_pairs:
++            return
++        content = assembled.get("content") if isinstance(assembled, dict) else None
++        runtime_content = getattr(message, "content", None)
++        if not isinstance(content, list) or not isinstance(runtime_content, list):
++            return
++        pairs = []
++        for src, block in extra_pairs:
++            for i, item in enumerate(content):
++                if item is block:
++                    runtime = runtime_content[i]
++                    # N3：runtime 侧以弱引用登记——映射不延长最终运行时
++                    # 实例寿命（宿主侧自身释放规则）；src 侧强引用与请求
++                    # 持有的 extra parts 同寿命。失效标记补偿在绑定时刻
++                    # 以仍存活的源对象判定（M3）。
++                    pairs.append((src, weakref.ref(runtime)))
++                    if bool(getattr(src, "_source_invalidated", False)):
++                        runtime.text = ""
++                    break
++        try:
++            request._extra_runtime_pairs = pairs
++            request._extra_runtime_channel = "identity"
++        except Exception:  # noqa: BLE001 - 映射失败不影响原生组装
++            pass
+ 
+     async def _write_tool_result_overflow_file(
+         self,

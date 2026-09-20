@@ -1,87 +1,85 @@
-# astrbot_plugin_preference_profile
+# 角色偏好与互动边界管理 · AstrBot
 
-AstrBot 独立插件：**角色偏好与互动边界（XP 管理）首版 v0.1.0**。
-在私聊中分别管理 Bot 人格模板与用户本人明确提交的偏好档案，在符合
-双方边界与当前关系状态的前提下，以临时提示影响回复的互动方式、强度
-与节奏。
+私聊中分别维护用户本人的偏好档案与 Bot 当前人格模板，将双方明确设置的边界转换成本轮回复的临时指导。命令组为 `/xp`，中文别名为 `/偏好`。
 
-## 安装
+**当前版本：0.1.12。指定补丁组合的本地独立验收（A0）已通过；真实 QQ / 模型试用（A1）待执行。**
 
-1. 解压 ZIP 到 AstrBot 数据目录旁的插件目录（如
-   `addons/plugins/astrbot_plugin_preference_profile/`），或通过 WebUI
-   离线安装该 ZIP。
-2. 重载插件。默认**关闭**：管理员需私聊执行 `/xp admin switch on`，
-   每个用户再私聊 `/xp on` 才为自己的轮次启用。
-3. 零第三方依赖；要求 AstrBot 4.26.0 或 4.28.0（已用真实包验证，
-   其他版本未测试不宣称支持）。
+## 下载与安装前必读
 
-## 使用（私聊）
+- [下载源码 ZIP](https://github.com/MisakaZhu/astrbot_plugin_preference_profile/archive/refs/heads/main.zip)，或使用 `git clone https://github.com/MisakaZhu/astrbot_plugin_preference_profile.git`。
+- [测试发行版与原始插件安装包](https://github.com/MisakaZhu/astrbot_plugin_preference_profile/releases/tag/v0.1.12)。原始 ZIP 保留已验收字节，SHA-256 见发行版校验清单。
+- **完整通过的组合需要 AstrBot 4.28.0 或 4.26.0 对应的宿主来源映射 v3 补丁。只安装插件 ZIP 或只用 WebUI 拉取插件，不会自动修改宿主。**
+- 配套文件已放入 [integration/host-v3](integration/host-v3/README.md)。先由环境维护者核对版本、哈希和备份，在独立测试实例准备宿主，再安装本插件。
+- 本仓库 `main` 在已验收插件提交 `7c99f5a` 上仅增加下载说明、仓库地址、验收摘要与配套资料；Python 运行时代码未变。`a0-accepted-0.1.12` 标签保留原始插件基线。
 
-```
-/xp help                 说明
-/xp status               自己的状态概览
-/xp on  /  /xp off       本人开启/关闭（关闭立即停止后续注入）
-/xp show [页码]          查看自己的条目
-/xp set <标签> <状态> [方向] [强度]
-                         状态：喜欢/中立/不喜欢/禁止
-                         方向：主动/接受/双向；强度：1-5
-/xp remove <标签>        删除单条
-/xp clear                一次性确认后删除自己的全部档案
-/xp admin switch on|off  管理员总开关（私聊）
-/xp admin stats          脱敏统计
-/xp admin template show|set|remove|clear   Bot 人格模板维护
+不带 v3 的原生宿主仍有已知来源归属限制，不能套用完整组合的通过结论。其他宿主版本、第三方 Agent 和协作插件新版本需要另行验证。
+
+## 第一次使用
+
+安装或重载后默认关闭；所有管理操作在私聊中执行，管理员与用户应处于同一测试人格。
+
+管理员先设置：
+
+```text
+/xp admin switch on
+/xp admin template set 语气风格 喜欢 双向 2
 ```
 
-`/偏好` 为中文别名组；内置标签：话题偏好、称呼方式、玩笑尺度、
-亲密度表达、互动节奏、语气风格（也可 2-16 字自定义）。
+用户再设置：
 
-## 功能语义（要点）
+```text
+/xp help
+/xp on
+/xp set 语气风格 喜欢 双向 2
+/xp show
+/xp status
+```
 
-- **未设置 ≠ 同意**：单方设置不产生任何指导；喜欢不覆盖另一方禁止；
-  冲突取更严格限制。
-- 中立 = 可接受但不特别偏好：不抬升也不压制对方强度。
-- 性别等属性与方向/强度无关；保存偏好不建立或改变关系、不加分。
-- 注入为单轮临时块（`mark_as_temp`）：不进宿主历史、不改人格/
-  contexts/工具/其他插件提示、不改消息路由；普通轮次零额外模型调用。
-- 关闭/删除即时生效（epoch 失效），慢请求不能复活。
+用同一问题对照不同方向与强度。提示指导不保证模型每次表现一致，请按照 [朋友测试清单](docs/FRIEND_TEST_A1.md) 记录实际结果。
 
-## 与其他插件的协作
+## 命令速查
 
-| 场景 | 状态 | 说明 |
+| 命令 | 用途 |
+| --- | --- |
+| `/xp help`、`/xp status` | 帮助、自己的状态 |
+| `/xp on`、`/xp off` | 本人开启/关闭；受管理员总开关约束 |
+| `/xp show [页码]` | 查看本人条目 |
+| `/xp set <标签> <状态> [方向] [强度]` | 增改本人条目 |
+| `/xp remove <标签>` | 删除一条 |
+| `/xp clear [确认码]` | 先获取一次性确认码，再按实际返回的命令确认 |
+| `/xp admin switch on\|off` | 管理员总开关 |
+| `/xp admin stats` | 脱敏统计 |
+| `/xp admin template show\|set\|remove\|clear` | 当前人格的 Bot 模板 |
+
+状态：喜欢 / 中立 / 不喜欢 / 禁止；方向：主动 / 接受 / 双向；强度：1-5。内置标签包括话题偏好、称呼方式、玩笑尺度、亲密度表达、互动节奏、语气风格，也支持 2-16 字自定义标签。
+
+## 规则与隐私
+
+- 未设置不等于同意：单方喜欢且另一方未设置时不生成正向指导；任一方不喜欢或禁止时仍生成回避指导。
+- 中立表示可接受但不特别偏好，不抬升也不压制对方已声明的强度；双方喜欢时取较低强度。性别不决定方向。
+- 私人档案只由本人通过私聊维护；管理员维护 Bot 模板和总开关，普通管理命令不提供读取他人档案的入口。
+- 临时偏好块不写入宿主历史。关闭、删除、管理员关停会停止后续读取/注入，并清理仍可控制的本插件在途内容。
+- 已发送给模型的内容无法撤回；本插件不会代删宿主旧聊天、其他插件历史或备份。数据库维护者仍可能接触落盘数据。
+
+## 可选协作
+
+| 组件 | 已验证基线 | 行为 |
 | --- | --- | --- |
-| 未装协作插件 | 完整独立可用 | 偏好管理与注入不依赖任何第三方插件 |
-| Relation Arc 在场 | 只读联动已验证 | 关系暂停/放缓压制偏好强度；只读其数据库，缺失/异常自动保守失效 |
-| Context Bridge 在场 + 补丁 | 隐私隔离已验证 | 偏好启用私聊轮次（输入/回复/工具轨迹）不进入跨会话共享；应用 `patches/0001-uctx-turn-exclusion-protocol.patch`（基线 d8a7147） |
-| Context Bridge 在场但未打补丁 | 保守降级 | 私人偏好注入禁用（防止泄漏），命令层向用户说明；其余功能正常 |
+| [Relation Arc](https://github.com/MisakaZhu/astrbot_plugin_relation_arc/tree/913ca59036267de2bcc481b8910b5f6fc8044f91) | `913ca59` | 只读关系快照；有效暂停/放缓约束正向指导。缺失或异常时关系联动不可用，独立偏好仍可运行。 |
+| [Context Bridge](https://github.com/MisakaZhu/astrbot_plugin_user_context_bridge/tree/d8a7147e2a43c37b83781b92774afae2a254be60) | `d8a7147` + [0001](patches/README.md) | 偏好启用的私聊轮次排除跨会话共享。若插件在场而排除协议不可用，则禁用私人偏好注入。 |
 
-### 应用补丁（需要跨会话隐私隔离时）
-
-```bash
-cd astrbot_plugin_user_context_bridge   # 须为 d8a7147 基线
-git apply --check <本插件目录>/patches/0001-uctx-turn-exclusion-protocol.patch
-git apply      <本插件目录>/patches/0001-uctx-turn-exclusion-protocol.patch
-# 回滚：git apply -R <同一补丁>，或 git checkout -- main.py uctx_bridge/bridge.py
-```
-
-补丁仅 15 行新增；哈希与应用/回滚见 `patches/README.md`。
-
-## 删除与隐私边界（如实告知）
-
-- `/xp off` / `/xp clear` 只清理**本插件**保存的档案与缓存，立即停止
-  后续读取与注入。
-- **已经发送给模型的内容无法撤回**；宿主自身的聊天记录、其他插件
-  （如上下文共享）的历史、既有备份**不受影响也不会被本插件代为删除**，
-  请分别使用对应功能清理。
-- 服务器/数据库运维人员仍可能读取落盘数据；不宣称端到端保密。
+协作补丁应应用于固定基线；不能将“其他版本安装成功”等同于通过此组合验收。
 
 ## 文档
 
-- 设计决策：[docs/ADR.md](docs/ADR.md)
-- 验收矩阵与证据：[docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)
-- 兼容矩阵：[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
-- 变更：[CHANGELOG.md](CHANGELOG.md)
-- 交接：[HANDOFF.md](HANDOFF.md)
+- [当前验收与发行说明](docs/RELEASE_STATUS.md)
+- [朋友实机测试清单](docs/FRIEND_TEST_A1.md)
+- [完整项目报告 PDF](docs/PROJECT_REPORT.pdf)
+- [宿主 v3 配套文件与使用说明](integration/host-v3/README.md)
+- [设计记录](docs/ADR.md) / [历史验收矩阵](docs/ACCEPTANCE.md) / [变更记录](CHANGELOG.md)
+
+历史文档保留各轮当时的状态；当前结论以 `docs/RELEASE_STATUS.md` 为准。仓库不包含真实档案数据库、聊天日志、账号凭据或虚拟环境。
 
 ## 许可
 
-未指定（发布前决定）；引用的 AstrBot 接口遵循 AstrBot 项目许可。
+插件本体尚未另行声明开源许可证；公开下载不代表授予未声明的额外授权。`integration/host-v3` 中的 AstrBot 衍生源码及补丁沿用其 AGPL-3.0-or-later 许可，附完整许可与来源说明。双方范围分别说明，未替项目另选许可。
